@@ -1,0 +1,98 @@
+/* Widen Property Name - DataView Table Column Expansion */
+.dataview.table-view-table {
+    font-size: 7pt !important;
+    width: 400% !important; /* Quadruple the width for frontmatter property names */
+    table-layout: auto !important;
+    max-width: none !important; /* Remove max-width constraints */
+}
+
+/* Specifically target property name columns for extra width */
+.dataview.table-view-table th:contains("Property"),
+.dataview.table-view-table th:contains("Name"),
+.dataview.table-view-table th:contains("Field"),
+.dataview.table-view-table th:contains("Column"),
+.dataview.table-view-table th:contains("GUID"),
+.dataview.table-view-table th:contains("Timestamp"),
+.dataview.table-view-table th:contains("Event") {
+    min-width: 400px !important;
+    max-width: none !important;
+}
+
+/* Target all columns that contain frontmatter property names */
+.dataview.table-view-table td {
+    min-width: 350px !important;
+    max-width: none !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    white-space: normal !important;
+    color: #0066cc !important; /* Blue color for all property names */
+    font-weight: 500 !important; /* Slightly bolder for better visibility */
+}
+
+/* Ensure property names are blue and wide */
+.dataview.table-view-table td:contains("OOEvent_"),
+.dataview.table-view-table td:contains("GUID"),
+.dataview.table-view-table td:contains("Timestamp"),
+.dataview.table-view-table td:contains("Type"),
+.dataview.table-view-table td:contains("FilePath"),
+.dataview.table-view-table td:contains("FileName"),
+.dataview.table-view-table td:contains("VaultName"),
+.dataview.table-view-table td:contains("LastModified"),
+.dataview.table-view-table td:contains("Created"),
+.dataview.table-view-table td:contains("PluginVersion") {
+    min-width: 400px !important;
+    max-width: none !important;
+    color: #0066cc !important; /* Blue color for property names */
+    font-weight: 600 !important; /* Bolder for better visibility */
+    font-size: 8pt !important; /* Slightly larger font */
+}
+
+/* Responsive design for mobile */
+@media (max-width: 768px) {
+    .dataview.table-view-table {
+        font-size: 6pt !important;
+        width: 200% !important; /* Still provide good width on mobile */
+    }
+    
+    .dataview.table-view-table th,
+    .dataview.table-view-table td {
+        padding: 2px 4px !important;
+        min-width: 150px !important;
+    }
+}
+
+/* Dark mode support */
+.theme-dark .dataview.table-view-table th {
+    background-color: #2d5a8b !important;
+}
+
+.theme-dark .dataview.table-view-table td {
+    background-color: #2d5a2d !important;
+    color: #e0e0e0 !important;
+}
+
+/* Dark mode property name styling */
+.theme-dark .dataview.table-view-table td {
+    color: #4da6ff !important; /* Lighter blue for dark mode */
+    font-weight: 500 !important;
+}
+
+/* Dark mode specific property name styling */
+.theme-dark .dataview.table-view-table td:contains("OOEvent_"),
+.theme-dark .dataview.table-view-table td:contains("GUID"),
+.theme-dark .dataview.table-view-table td:contains("Timestamp"),
+.theme-dark .dataview.table-view-table td:contains("Type"),
+.theme-dark .dataview.table-view-table td:contains("FilePath"),
+.theme-dark .dataview.table-view-table td:contains("FileName"),
+.theme-dark .dataview.table-view-table td:contains("VaultName"),
+.theme-dark .dataview.table-view-table td:contains("LastModified"),
+.theme-dark .dataview.table-view-table td:contains("Created"),
+.theme-dark .dataview.table-view-table td:contains("PluginVersion") {
+    color: #66b3ff !important; /* Brighter blue for dark mode */
+    font-weight: 600 !important;
+    font-size: 8pt !important;
+}
+
+.theme-dark .dataview.table-view-table tr:hover td {
+    background-color: #3d6a3d !important;
+}
