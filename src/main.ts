@@ -53,6 +53,16 @@ export default class ObsidianObserverPlugin extends Plugin {
         }
       });
 
+      // Add command palette command for refreshing summary file
+      this.addCommand({
+        id: 'obsidian-observer-refresh-summary',
+        name: 'ObsidianObserver: Refresh Summary',
+        callback: async () => {
+          await this.logger.refreshMainSummaryNote();
+          new Notice('Events summary refreshed!');
+        }
+      });
+
       // Add ribbon icon for creating summary note
       this.addRibbonIcon('file-text', 'Create Events Summary', async () => {
         await this.logger.createSummaryNote();
@@ -74,6 +84,23 @@ export default class ObsidianObserverPlugin extends Plugin {
     console.log('[ObsidianObserver] Unloading plugin...');
 
     try {
+      // Log quit event before unregistering handlers
+      if (this.logger) {
+        const { generateBase32Guid } = await import('./utils');
+        const eventLog = {
+          guid: generateBase32Guid(),
+          timestamp: new Date().toISOString(),
+          eventType: 'quit' as const,
+          filePath: '',
+          fileName: '',
+          vaultName: this.app.vault.getName(),
+          metadata: {
+            lastModified: new Date().toISOString()
+          }
+        };
+        await this.logger.logEvent(eventLog);
+      }
+
       // Unregister event handlers
       if (this.eventHandlers) {
         this.eventHandlers.unregisterEventHandlers();

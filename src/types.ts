@@ -1,7 +1,7 @@
 export interface EventLog {
   guid: string; // Base32 GUID for unique identification
   timestamp: string;
-  eventType: 'open' | 'save';
+  eventType: 'open' | 'save' | 'quit' | 'ready' | 'rename' | 'delete';
   filePath: string;
   fileName: string;
   vaultName: string;
@@ -20,7 +20,7 @@ export interface EventFrontmatter {
   OOEvent_Timestamp: string;
   OOEvent_LocalTimestamp?: string;
   OOEvent_Timezone?: string;
-  OOEvent_Type: 'open' | 'save';
+  OOEvent_Type: 'open' | 'save' | 'quit' | 'ready' | 'rename' | 'delete';
   OOEvent_FilePath: string;
   OOEvent_FileName: string;
   OOEvent_VaultName: string;
