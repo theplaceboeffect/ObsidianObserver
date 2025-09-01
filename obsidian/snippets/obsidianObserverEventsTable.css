@@ -2,7 +2,7 @@
 
 .obsidianObserverEventsTable
 {
-  version: "v00.00.02"
+  version: "v00.00.04"
 }
 
 /* Scope: only tables inside .obsidianObserverEventsTable blocks */
@@ -17,7 +17,7 @@
   line-height: 1.2 !important;
 
   /* cleaned up: remove x-border; fix color var */
-  border: 5px solid orange !important;
+  border: 5px solid rgb(157, 241, 149) !important;
   border-radius: 4px !important;
   overflow: hidden !important;
 }
@@ -32,7 +32,7 @@
   text-align: left !important;
 
   /* keep your debug border, remove x-border */
-  border-bottom: 1px solid red !important;
+  border-bottom: 2px solid orange !important;
 
   white-space: nowrap !important;
   overflow: hidden !important;
@@ -48,7 +48,7 @@
   padding: 2px 6px !important;
 
   /* keep your debug border, remove x-border */
-  border-bottom: 1px solid yellow !important;
+  border-bottom: 1px solid greenyellow !important;
 
   white-space: nowrap !important;
   overflow: hidden !important;
@@ -87,9 +87,10 @@
 .obsidianObserverEventsTable table.dataview td:first-child,
 .obsidianObserverEventsTable .table-view-table th:first-child,
 .obsidianObserverEventsTable .table-view-table td:first-child {
-  width: 140px !important;
-  max-width: 140px !important;
+  width: 20px !important;
+  max-width: 20px !important;
   x-background-color: red !important;
+  font-weight: bold !important;
 }
 
 /* Second column (Type) — centered + bold */
@@ -97,8 +98,8 @@
 .obsidianObserverEventsTable table.dataview td:nth-child(2),
 .obsidianObserverEventsTable .table-view-table th:nth-child(2),
 .obsidianObserverEventsTable .table-view-table td:nth-child(2) {
-  width: 40px !important;
-  max-width: 40px !important;
+  width: 10px !important;
+  max-width: 10px !important;
   text-align: center !important;
   font-weight: bold !important;
   x-background-color: lightgreen !important;

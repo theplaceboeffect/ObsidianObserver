@@ -10,6 +10,9 @@ var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __markAsModule = (target) => __defProp(target, "__esModule", { value: true });
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[Object.keys(fn)[0]])(fn = 0)), res;
+};
 var __export = (target, all) => {
   __markAsModule(target);
   for (var name in all)
@@ -26,6 +29,40 @@ var __reExport = (target, module2, desc) => {
 var __toModule = (module2) => {
   return __reExport(__markAsModule(__defProp(module2 != null ? __create(__getProtoOf(module2)) : {}, "default", module2 && module2.__esModule && "default" in module2 ? { get: () => module2.default, enumerable: true } : { value: module2, enumerable: true })), module2);
 };
+
+// src/utils.ts
+var utils_exports = {};
+__export(utils_exports, {
+  generateBase32Guid: () => generateBase32Guid
+});
+function generateBase32Guid() {
+  const uuid = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === "x" ? r : r & 3 | 8;
+    return v.toString(16);
+  });
+  return uuidToBase32(uuid);
+}
+function uuidToBase32(uuid) {
+  const cleanUuid = uuid.replace(/-/g, "").toLowerCase();
+  let binary = "";
+  for (let i = 0; i < cleanUuid.length; i++) {
+    const hex = parseInt(cleanUuid[i], 16);
+    binary += hex.toString(2).padStart(4, "0");
+  }
+  const base32Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  let base32 = "";
+  for (let i = 0; i < binary.length; i += 5) {
+    const chunk = binary.substr(i, 5).padEnd(5, "0");
+    const decimal = parseInt(chunk, 2);
+    base32 += base32Chars[decimal];
+  }
+  return base32.substring(0, 26);
+}
+var init_utils = __esm({
+  "src/utils.ts"() {
+  }
+});
 
 // src/main.ts
 __export(exports, {
@@ -169,7 +206,14 @@ OOEvent_TargetPath: ${frontmatter.OOEvent_TargetPath}`;
 ---
 
 `;
-    const noteContent = `${frontmatterFields}[[${eventLog.fileName}]]`;
+    let noteContent = frontmatterFields;
+    if (eventLog.fileName && eventLog.fileName.trim() !== "") {
+      noteContent += `[[${eventLog.fileName}]]`;
+    } else {
+      noteContent += `# ${eventLog.eventType.toUpperCase()} Event
+
+This event was logged at ${new Date(eventLog.timestamp).toLocaleString()}.`;
+    }
     return noteContent;
   }
   async createSummaryNote() {
@@ -193,51 +237,51 @@ This file provides a summary of all ObsidianObserver events.
 
 ### Basic Event Queries
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_VaultName, OOEvent_Timestamp
+TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_VaultName, OOEvent_LocalTimestamp
 FROM "${this.config.eventsDirectory}"
 WHERE OOEvent_Type = "open"
-SORT OOEvent_Timestamp DESC
+SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
 \`\`\`
 
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_VaultName, OOEvent_Timestamp
+TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_VaultName, OOEvent_LocalTimestamp
 FROM "${this.config.eventsDirectory}"
 WHERE OOEvent_Type = "save"
-SORT OOEvent_Timestamp DESC
+SORT OOEvent_LocalTimestamp DESC
 LIMIT 5
 \`\`\`
 
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_VaultName, OOEvent_Timestamp
+TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_VaultName, OOEvent_LocalTimestamp
 FROM "${this.config.eventsDirectory}"
 WHERE OOEvent_Type = "close"
-SORT OOEvent_Timestamp DESC
+SORT OOEvent_LocalTimestamp DESC
 LIMIT 5
 \`\`\`
 
 ### File Management Events
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_VaultName, OOEvent_Timestamp
+TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_VaultName, OOEvent_LocalTimestamp
 FROM "${this.config.eventsDirectory}"
 WHERE OOEvent_Type = "create"
-SORT OOEvent_Timestamp DESC
+SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
 \`\`\`
 
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_VaultName, OOEvent_Timestamp
+TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_VaultName, OOEvent_LocalTimestamp
 FROM "${this.config.eventsDirectory}"
 WHERE OOEvent_Type = "delete"
-SORT OOEvent_Timestamp DESC
+SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
 \`\`\`
 
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_OldPath, OOEvent_NewPath, OOEvent_Timestamp
+TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_OldPath, OOEvent_NewPath, OOEvent_LocalTimestamp
 FROM "${this.config.eventsDirectory}"
 WHERE OOEvent_Type = "rename"
-SORT OOEvent_Timestamp DESC
+SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
 \`\`\`
 
@@ -344,9 +388,9 @@ This file provides comprehensive DataView reports for common use-cases with Obsi
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
-  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
+  dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "_debug/events"
-SORT OOEvent_Timestamp DESC
+SORT OOEvent_LocalTimestamp DESC
 LIMIT 20
 \`\`\`
 
@@ -379,10 +423,10 @@ LIMIT 15
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
-  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
+  dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "_debug/events"
 WHERE OOEvent_Type = "open"
-SORT OOEvent_Timestamp DESC
+SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
 \`\`\`
 
@@ -391,10 +435,10 @@ LIMIT 10
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
-  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
+  dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "_debug/events"
 WHERE OOEvent_Type = "save"
-SORT OOEvent_Timestamp DESC
+SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
 \`\`\`
 
@@ -403,10 +447,10 @@ LIMIT 10
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
-  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
+  dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "_debug/events"
 WHERE OOEvent_Type = "close"
-SORT OOEvent_Timestamp DESC
+SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
 \`\`\`
 
@@ -417,10 +461,10 @@ LIMIT 10
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
-  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
+  dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "_debug/events"
 WHERE OOEvent_Type = "create"
-SORT OOEvent_Timestamp DESC
+SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
 \`\`\`
 
@@ -429,10 +473,10 @@ LIMIT 10
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
-  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
+  dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "_debug/events"
 WHERE OOEvent_Type = "delete"
-SORT OOEvent_Timestamp DESC
+SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
 \`\`\`
 
@@ -443,10 +487,10 @@ TABLE WITHOUT ID
   upper(OOEvent_Type) AS "Type",
   OOEvent_OldPath AS "Old Path",
   OOEvent_NewPath AS "New Path",
-  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
+  dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "_debug/events"
 WHERE OOEvent_Type = "rename"
-SORT OOEvent_Timestamp DESC
+SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
 \`\`\`
 
@@ -457,10 +501,10 @@ LIMIT 10
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
-  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
+  dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "_debug/events"
 WHERE contains(OOEvent_FilePath, "Projects")
-SORT OOEvent_Timestamp DESC
+SORT OOEvent_LocalTimestamp DESC
 LIMIT 15
 \`\`\`
 
@@ -469,10 +513,10 @@ LIMIT 15
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
-  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
+  dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "_debug/events"
 WHERE contains(OOEvent_FilePath, "People")
-SORT OOEvent_Timestamp DESC
+SORT OOEvent_LocalTimestamp DESC
 LIMIT 15
 \`\`\`
 
@@ -481,10 +525,10 @@ LIMIT 15
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
-  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
+  dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "_debug/events"
 WHERE contains(OOEvent_FileName, "Meeting")
-SORT OOEvent_Timestamp DESC
+SORT OOEvent_LocalTimestamp DESC
 LIMIT 15
 \`\`\`
 
@@ -495,10 +539,10 @@ LIMIT 15
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
-  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
+  dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "_debug/events"
-WHERE date(OOEvent_Timestamp) = date(today)
-SORT OOEvent_Timestamp DESC
+WHERE date(OOEvent_LocalTimestamp) = date(today)
+SORT OOEvent_LocalTimestamp DESC
 \`\`\`
 
 ### This Week's Activity
@@ -506,17 +550,17 @@ SORT OOEvent_Timestamp DESC
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
-  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
+  dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "_debug/events"
-WHERE date(OOEvent_Timestamp) >= date(today) - dur(7 days)
-SORT OOEvent_Timestamp DESC
+WHERE date(OOEvent_LocalTimestamp) >= date(today) - dur(7 days)
+SORT OOEvent_LocalTimestamp DESC
 \`\`\`
 
 ### Daily Activity Summary (Last 30 Days)
 \`\`\`dataview
-TABLE date(OOEvent_Timestamp) as "Date", length(rows) as "Events"
+TABLE date(OOEvent_LocalTimestamp) as "Date", length(rows) as "Events"
 FROM "_debug/events"
-GROUP BY date(OOEvent_Timestamp)
+GROUP BY date(OOEvent_LocalTimestamp)
 SORT "Date" DESC
 LIMIT 30
 \`\`\`
@@ -529,7 +573,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   OOEvent_FileSize AS "Size",
   upper(OOEvent_Type) AS "Type",
-  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
+  dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "_debug/events"
 WHERE OOEvent_FileSize
 SORT OOEvent_FileSize DESC
@@ -543,10 +587,10 @@ LIMIT 10
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
-  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
+  dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "_debug/events"
 WHERE contains(OOEvent_FileName, "YOUR_SEARCH_TERM")
-SORT OOEvent_Timestamp DESC
+SORT OOEvent_LocalTimestamp DESC
 \`\`\`
 
 ### Search by GUID
@@ -555,7 +599,7 @@ TABLE WITHOUT ID
   OOEvent_GUID AS "GUID",
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
-  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
+  dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "_debug/events"
 WHERE OOEvent_GUID = "YOUR_GUID_HERE"
 \`\`\`
@@ -568,11 +612,14 @@ WHERE OOEvent_GUID = "YOUR_GUID_HERE"
 - **create**: New file created
 - **delete**: File deleted from vault
 - **rename**: File renamed or moved (includes old and new paths)
+- **ready**: Obsidian application fully loaded and ready
+- **quit**: Obsidian application closing
 
 ## Metadata Fields
 
 - **OOEvent_GUID**: Unique Base32 identifier for each event
-- **OOEvent_Timestamp**: ISO timestamp of the event
+- **OOEvent_Timestamp**: ISO timestamp of the event (UTC)
+- **OOEvent_LocalTimestamp**: Local timestamp of the event (user's timezone)
 - **OOEvent_Type**: Type of file operation
 - **OOEvent_FilePath**: Full path to the file
 - **OOEvent_FileName**: Name of the file
@@ -595,38 +642,26 @@ WHERE OOEvent_GUID = "YOUR_GUID_HERE"
       console.error(`[ObsidianObserver] Error creating main summary file:`, error);
     }
   }
+  async refreshMainSummaryNote() {
+    try {
+      const summaryPath = "_debug/EventsSummary.md";
+      const existingFile = this.app.vault.getAbstractFileByPath(summaryPath);
+      if (existingFile) {
+        await this.app.vault.delete(existingFile);
+        console.log(`[ObsidianObserver] Deleted existing summary file: ${summaryPath}`);
+      }
+      await this.createMainSummaryNote();
+      console.log(`[ObsidianObserver] Refreshed main summary file: ${summaryPath}`);
+    } catch (error) {
+      console.error(`[ObsidianObserver] Error refreshing main summary file:`, error);
+      throw error;
+    }
+  }
 };
 
 // src/eventHandlers.ts
 var import_obsidian = __toModule(require("obsidian"));
-
-// src/utils.ts
-function generateBase32Guid() {
-  const uuid = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === "x" ? r : r & 3 | 8;
-    return v.toString(16);
-  });
-  return uuidToBase32(uuid);
-}
-function uuidToBase32(uuid) {
-  const cleanUuid = uuid.replace(/-/g, "").toLowerCase();
-  let binary = "";
-  for (let i = 0; i < cleanUuid.length; i++) {
-    const hex = parseInt(cleanUuid[i], 16);
-    binary += hex.toString(2).padStart(4, "0");
-  }
-  const base32Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-  let base32 = "";
-  for (let i = 0; i < binary.length; i += 5) {
-    const chunk = binary.substr(i, 5).padEnd(5, "0");
-    const decimal = parseInt(chunk, 2);
-    base32 += base32Chars[decimal];
-  }
-  return base32.substring(0, 26);
-}
-
-// src/eventHandlers.ts
+init_utils();
 var EventHandlers = class {
   constructor(app, logger) {
     this.eventRefs = [];
@@ -664,7 +699,23 @@ var EventHandlers = class {
         }
       });
       this.eventRefs.push(saveRef);
-      console.log("[ObsidianObserver] Event handlers registered successfully (open and save only)");
+      const renameRef = this.app.vault.on("rename", (file, oldPath) => {
+        if (file instanceof import_obsidian.TFile) {
+          this.handleFileRename(file, oldPath);
+        }
+      });
+      this.eventRefs.push(renameRef);
+      const deleteRef = this.app.vault.on("delete", (file) => {
+        if (file instanceof import_obsidian.TFile) {
+          this.handleFileDelete(file);
+        }
+      });
+      this.eventRefs.push(deleteRef);
+      const readyRef = this.app.workspace.on("layout-ready", () => {
+        this.handleAppReady();
+      });
+      this.eventRefs.push(readyRef);
+      console.log("[ObsidianObserver] Event handlers registered successfully (open, save, rename, delete, ready)");
     } catch (error) {
       console.error("[ObsidianObserver] Error registering event handlers:", error);
     }
@@ -759,6 +810,101 @@ var EventHandlers = class {
       this.isProcessingEvent = false;
     }
   }
+  async handleFileRename(file, oldPath) {
+    try {
+      if (this.isProcessingEvent) {
+        console.log(`[ObsidianObserver] Skipping recursive event processing for: ${file.path}`);
+        return;
+      }
+      if (this.shouldExcludeFile(file.path) || this.shouldExcludeFile(oldPath)) {
+        console.log(`[ObsidianObserver] Skipping excluded file: ${file.path} (renamed from ${oldPath})`);
+        return;
+      }
+      this.isProcessingEvent = true;
+      let metadata;
+      try {
+        const stat = await this.app.vault.adapter.stat(file.path);
+        if (stat) {
+          metadata = {
+            lastModified: new Date(stat.mtime).toISOString(),
+            fileSize: stat.size,
+            oldPath,
+            newPath: file.path
+          };
+        }
+      } catch (error) {
+        console.warn("[ObsidianObserver] Error getting file metadata:", error);
+      }
+      const eventLog = {
+        guid: generateBase32Guid(),
+        timestamp: new Date().toISOString(),
+        eventType: "rename",
+        filePath: file.path,
+        fileName: file.name,
+        vaultName: this.app.vault.getName(),
+        metadata
+      };
+      await this.logger.logEvent(eventLog);
+    } catch (error) {
+      console.error("[ObsidianObserver] Error handling file rename event:", error);
+    } finally {
+      this.isProcessingEvent = false;
+    }
+  }
+  async handleFileDelete(file) {
+    try {
+      if (this.isProcessingEvent) {
+        console.log(`[ObsidianObserver] Skipping recursive event processing for: ${file.path}`);
+        return;
+      }
+      if (this.shouldExcludeFile(file.path)) {
+        console.log(`[ObsidianObserver] Skipping excluded file: ${file.path}`);
+        return;
+      }
+      this.isProcessingEvent = true;
+      const eventLog = {
+        guid: generateBase32Guid(),
+        timestamp: new Date().toISOString(),
+        eventType: "delete",
+        filePath: file.path,
+        fileName: file.name,
+        vaultName: this.app.vault.getName(),
+        metadata: {
+          lastModified: new Date().toISOString()
+        }
+      };
+      await this.logger.logEvent(eventLog);
+    } catch (error) {
+      console.error("[ObsidianObserver] Error handling file delete event:", error);
+    } finally {
+      this.isProcessingEvent = false;
+    }
+  }
+  async handleAppReady() {
+    try {
+      if (this.isProcessingEvent) {
+        console.log("[ObsidianObserver] Skipping recursive event processing for app ready");
+        return;
+      }
+      this.isProcessingEvent = true;
+      const eventLog = {
+        guid: generateBase32Guid(),
+        timestamp: new Date().toISOString(),
+        eventType: "ready",
+        filePath: "",
+        fileName: "",
+        vaultName: this.app.vault.getName(),
+        metadata: {
+          lastModified: new Date().toISOString()
+        }
+      };
+      await this.logger.logEvent(eventLog);
+    } catch (error) {
+      console.error("[ObsidianObserver] Error handling app ready event:", error);
+    } finally {
+      this.isProcessingEvent = false;
+    }
+  }
   async testLogging() {
     try {
       const testFile = this.app.workspace.getActiveFile();
@@ -814,6 +960,14 @@ var ObsidianObserverPlugin = class extends import_obsidian2.Plugin {
           new import_obsidian2.Notice("Buffer flushed to event notes!");
         }
       });
+      this.addCommand({
+        id: "obsidian-observer-refresh-summary",
+        name: "ObsidianObserver: Refresh Summary",
+        callback: async () => {
+          await this.logger.refreshMainSummaryNote();
+          new import_obsidian2.Notice("Events summary refreshed!");
+        }
+      });
       this.addRibbonIcon("file-text", "Create Events Summary", async () => {
         await this.logger.createSummaryNote();
         new import_obsidian2.Notice("Events summary created!");
@@ -829,6 +983,21 @@ var ObsidianObserverPlugin = class extends import_obsidian2.Plugin {
   async onunload() {
     console.log("[ObsidianObserver] Unloading plugin...");
     try {
+      if (this.logger) {
+        const { generateBase32Guid: generateBase32Guid2 } = await Promise.resolve().then(() => (init_utils(), utils_exports));
+        const eventLog = {
+          guid: generateBase32Guid2(),
+          timestamp: new Date().toISOString(),
+          eventType: "quit",
+          filePath: "",
+          fileName: "",
+          vaultName: this.app.vault.getName(),
+          metadata: {
+            lastModified: new Date().toISOString()
+          }
+        };
+        await this.logger.logEvent(eventLog);
+      }
       if (this.eventHandlers) {
         this.eventHandlers.unregisterEventHandlers();
       }

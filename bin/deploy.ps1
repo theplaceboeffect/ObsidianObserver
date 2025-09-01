@@ -213,10 +213,13 @@ function Update-AppJson {
     
     $appJsonPath = Join-Path $VaultPath ".obsidian" "app.json"
     
+    Write-ColorOutput "  🔍 Updating app.json at: $appJsonPath" $Gray
+    
     # Read existing app.json or create new one
     if (Test-Path $appJsonPath) {
         try {
             $appConfig = Get-Content $appJsonPath | ConvertFrom-Json
+            Write-ColorOutput "  📖 Read existing app.json" $Gray
         } catch {
             Write-ColorOutput "Warning: Could not parse existing app.json, creating new one" $Yellow
             $appConfig = [PSCustomObject]@{
@@ -224,6 +227,7 @@ function Update-AppJson {
             }
         }
     } else {
+        Write-ColorOutput "  📝 Creating new app.json" $Gray
         $appConfig = [PSCustomObject]@{
             plugins = @{}
         }
@@ -236,12 +240,63 @@ function Update-AppJson {
     
     # Handle case where plugins might be read-only or have different structure
     try {
-        # Enable the plugin
-        $appConfig.plugins.$PluginName = $true
+        # Check if plugins property is writable
+        if ($appConfig.plugins -eq $null) {
+            $appConfig.plugins = @{}
+        }
         
-        # Save app.json
-        $appConfig | ConvertTo-Json -Depth 10 | Set-Content $appJsonPath -Encoding UTF8
-        Write-ColorOutput "  📄 Updated app.json to enable plugin" $Gray
+        # Try to enable the plugin with multiple fallback approaches
+        $pluginEnabled = $false
+        
+        # Method 1: Direct property assignment
+        try {
+            $appConfig.plugins.$PluginName = $true
+            $pluginEnabled = $true
+            Write-ColorOutput "  ✅ Plugin enabled via direct property assignment" $Gray
+        } catch {
+            Write-ColorOutput "  ⚠️  Direct property assignment failed: $($_.Exception.Message)" $Yellow
+            
+            # Method 2: Try using Add-Member if it's a PSCustomObject
+            try {
+                if ($appConfig.plugins -is [PSCustomObject]) {
+                    $appConfig.plugins | Add-Member -Name $PluginName -Value $true -MemberType NoteProperty -Force
+                    $pluginEnabled = $true
+                    Write-ColorOutput "  ✅ Plugin enabled via Add-Member" $Gray
+                }
+            } catch {
+                Write-ColorOutput "  ⚠️  Add-Member approach failed: $($_.Exception.Message)" $Yellow
+                
+                # Method 3: Create new object with plugin enabled
+                try {
+                    $newPlugins = @{}
+                    if ($appConfig.plugins) {
+                        $appConfig.plugins.PSObject.Properties | ForEach-Object {
+                            $newPlugins[$_.Name] = $_.Value
+                        }
+                    }
+                    $newPlugins[$PluginName] = $true
+                    $appConfig.plugins = $newPlugins
+                    $pluginEnabled = $true
+                    Write-ColorOutput "  ✅ Plugin enabled via object recreation" $Gray
+                } catch {
+                    Write-ColorOutput "  ⚠️  Object recreation failed: $($_.Exception.Message)" $Yellow
+                }
+            }
+        }
+        
+        if ($pluginEnabled) {
+            # Save app.json
+            try {
+                $appConfig | ConvertTo-Json -Depth 10 | Set-Content $appJsonPath -Encoding UTF8
+                Write-ColorOutput "  📄 Updated app.json to enable plugin" $Gray
+            } catch {
+                Write-ColorOutput "  ⚠️  Could not save app.json: $($_.Exception.Message)" $Yellow
+                Write-ColorOutput "  💡 Plugin files deployed but may need manual enabling in Obsidian settings" $Yellow
+            }
+        } else {
+            Write-ColorOutput "  ⚠️  All methods to enable plugin failed" $Yellow
+            Write-ColorOutput "  💡 Plugin files deployed but may need manual enabling in Obsidian settings" $Yellow
+        }
     } catch {
         Write-ColorOutput "  ⚠️  Could not update app.json: $($_.Exception.Message)" $Yellow
         Write-ColorOutput "  💡 Plugin files deployed but may need manual enabling in Obsidian settings" $Yellow
@@ -292,12 +347,16 @@ function Remove-ObsidianObserver {
         try {
             $appConfig = Get-Content $appJsonPath | ConvertFrom-Json
             if ($appConfig.plugins -and $appConfig.plugins."obsidian-observer") {
-                $appConfig.plugins."obsidian-observer" = $false
-                $appConfig | ConvertTo-Json -Depth 10 | Set-Content $appJsonPath -Encoding UTF8
-                Write-ColorOutput "  📄 Disabled plugin in app.json" $Gray
+                try {
+                    $appConfig.plugins."obsidian-observer" = $false
+                    $appConfig | ConvertTo-Json -Depth 10 | Set-Content $appJsonPath -Encoding UTF8
+                    Write-ColorOutput "  📄 Disabled plugin in app.json" $Gray
+                } catch {
+                    Write-ColorOutput "  ⚠️  Could not disable plugin in app.json: $($_.Exception.Message)" $Yellow
+                }
             }
         } catch {
-            Write-ColorOutput "  ⚠️  Could not update app.json" $Yellow
+            Write-ColorOutput "  ⚠️  Could not read app.json: $($_.Exception.Message)" $Yellow
         }
     }
     
@@ -341,7 +400,12 @@ try {
         Deploy-CssSnippets $VaultPath $SkipDeploy
         
         # Update app.json
-        Update-AppJson $VaultPath $pluginName
+        try {
+            Update-AppJson $VaultPath $pluginName
+        } catch {
+            Write-ColorOutput "  ⚠️  App.json update failed: $($_.Exception.Message)" $Yellow
+            Write-ColorOutput "  💡 Plugin files deployed but may need manual enabling in Obsidian settings" $Yellow
+        }
         
         Write-ColorOutput "✅ Plugin deployed successfully!" $Green
         Write-ColorOutput "📁 Plugin location: $(Join-Path $VaultPath '.obsidian' 'plugins' $pluginName)" $Cyan

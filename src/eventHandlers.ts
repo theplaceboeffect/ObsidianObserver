@@ -63,7 +63,29 @@ export class EventHandlers {
       });
       this.eventRefs.push(saveRef);
 
-      console.log('[ObsidianObserver] Event handlers registered successfully (open and save only)');
+      // Register file rename events
+      const renameRef = this.app.vault.on('rename', (file: TAbstractFile, oldPath: string) => {
+        if (file instanceof TFile) {
+          this.handleFileRename(file, oldPath);
+        }
+      });
+      this.eventRefs.push(renameRef);
+
+      // Register file delete events
+      const deleteRef = this.app.vault.on('delete', (file: TAbstractFile) => {
+        if (file instanceof TFile) {
+          this.handleFileDelete(file);
+        }
+      });
+      this.eventRefs.push(deleteRef);
+
+      // Register app ready event
+      const readyRef = this.app.workspace.on('layout-ready', () => {
+        this.handleAppReady();
+      });
+      this.eventRefs.push(readyRef);
+
+      console.log('[ObsidianObserver] Event handlers registered successfully (open, save, rename, delete, ready)');
     } catch (error) {
       console.error('[ObsidianObserver] Error registering event handlers:', error);
     }
@@ -182,13 +204,121 @@ export class EventHandlers {
     }
   }
 
+  private async handleFileRename(file: TFile, oldPath: string): Promise<void> {
+    try {
+      // Prevent recursive event processing
+      if (this.isProcessingEvent) {
+        console.log(`[ObsidianObserver] Skipping recursive event processing for: ${file.path}`);
+        return;
+      }
+      
+      // Skip logging events for excluded files to prevent recursion
+      if (this.shouldExcludeFile(file.path) || this.shouldExcludeFile(oldPath)) {
+        console.log(`[ObsidianObserver] Skipping excluded file: ${file.path} (renamed from ${oldPath})`);
+        return;
+      }
+      
+      this.isProcessingEvent = true;
 
+      // Get file metadata for last modified time and size
+      let metadata;
+      try {
+        const stat = await this.app.vault.adapter.stat(file.path);
+        if (stat) {
+          metadata = {
+            lastModified: new Date(stat.mtime).toISOString(),
+            fileSize: stat.size,
+            oldPath: oldPath,
+            newPath: file.path
+          };
+        }
+      } catch (error) {
+        console.warn('[ObsidianObserver] Error getting file metadata:', error);
+      }
 
+      const eventLog: EventLog = {
+        guid: generateBase32Guid(),
+        timestamp: new Date().toISOString(),
+        eventType: 'rename',
+        filePath: file.path,
+        fileName: file.name,
+        vaultName: this.app.vault.getName(),
+        metadata
+      };
 
+      await this.logger.logEvent(eventLog);
+    } catch (error) {
+      console.error('[ObsidianObserver] Error handling file rename event:', error);
+    } finally {
+      this.isProcessingEvent = false;
+    }
+  }
 
+  private async handleFileDelete(file: TFile): Promise<void> {
+    try {
+      // Prevent recursive event processing
+      if (this.isProcessingEvent) {
+        console.log(`[ObsidianObserver] Skipping recursive event processing for: ${file.path}`);
+        return;
+      }
+      
+      // Skip logging events for excluded files to prevent recursion
+      if (this.shouldExcludeFile(file.path)) {
+        console.log(`[ObsidianObserver] Skipping excluded file: ${file.path}`);
+        return;
+      }
+      
+      this.isProcessingEvent = true;
 
+      const eventLog: EventLog = {
+        guid: generateBase32Guid(),
+        timestamp: new Date().toISOString(),
+        eventType: 'delete',
+        filePath: file.path,
+        fileName: file.name,
+        vaultName: this.app.vault.getName(),
+        metadata: {
+          lastModified: new Date().toISOString()
+        }
+      };
 
+      await this.logger.logEvent(eventLog);
+    } catch (error) {
+      console.error('[ObsidianObserver] Error handling file delete event:', error);
+    } finally {
+      this.isProcessingEvent = false;
+    }
+  }
 
+  private async handleAppReady(): Promise<void> {
+    try {
+      // Prevent recursive event processing
+      if (this.isProcessingEvent) {
+        console.log('[ObsidianObserver] Skipping recursive event processing for app ready');
+        return;
+      }
+      
+      this.isProcessingEvent = true;
+
+      const eventLog: EventLog = {
+        guid: generateBase32Guid(),
+        timestamp: new Date().toISOString(),
+        eventType: 'ready',
+        filePath: '',
+        fileName: '',
+        vaultName: this.app.vault.getName(),
+        metadata: {
+          lastModified: new Date().toISOString()
+        }
+      };
+
+      await this.logger.logEvent(eventLog);
+    } catch (error) {
+      console.error('[ObsidianObserver] Error handling app ready event:', error);
+    } finally {
+      this.isProcessingEvent = false;
+    }
+  }
 
   async testLogging(): Promise<void> {
     try {
