@@ -110,7 +110,7 @@ Expected one of the following:
 
 ## DataView Styling System
 - [I] Create comprehensive CSS styling for DataView tables
-  - Add `model/.obsidian/snippets/dataview-table-fixes.css` with auto-fit layout
+  - Add `model/.obsidian/snippets/obsidianObserverEventsTable.css` with enhanced table styling
   - Implement 7pt font size with color coding (light blue headers, green data cells)
   - Add hover tooltips, responsive design, and dark mode support
   **COMPLETED**: 20250826-023000
@@ -219,7 +219,7 @@ Expected one of the following:
 1. [I] Sync on application close.
   **COMPLETED**: 20250829-214300 (Already implemented in onunload method)
 
-1. [I] Generate CSS file `obsidian/snippets/widen-property-name.css` to expand the properties table to double the width.
+1. [I] Generate CSS file `obsidian/snippets/obsidianObserverEventsTable.css` to provide enhanced table styling for event summaries.
         - Update `bin/deploy.*` to copy this file into `$VAULTDIR/.obsidian/snippets`.
   **COMPLETED**: 20250829-222000
   
@@ -257,3 +257,35 @@ Expected one of the following:
   **COMPLETED**: 20241229-232500
   [I] BUG: I switched to branch `v00.00.02` and build.ps1  script is still building `v00.00.01`
   **COMPLETED**: 20241229-233000
+
+# v00.00.03
+1. [I] BUG: neither the `_summary.md` file or `EventsSummary.md` file have a version number nor reference the css file. Fix it.
+  **COMPLETED**: 20241231-193100
+
+1. [I] Remove `build.sh` and `deploy.sh` scripts. We will use PowerShell moving forwarded.
+  **COMPLETED**: 20241231-194300
+1. [I] Add a parameter `-RemoveObsidianObserver` to `deploy.ps1`.
+      - [I] This will remove all the artifacts created by the deployment.
+      **COMPLETED**: 20241231-194300
+      - [I] Remove the `_debug/` folder from the specified Vault.
+      **COMPLETED**: 20241231-194300
+      - [I] Remove `obsidianObserverEventsTable.css` from the specified Vault.
+      **COMPLETED**: 20241231-194300
+
+1. [I] Remove `-Force` requirement from `deploy.ps1` - make deployment the default behavior.
+      - [I] Plugin files (main.js, manifest.json) should always be overwritten during deployment.
+      **COMPLETED**: 20241231-195700
+      - [I] CSS files should always be overwritten during deployment.
+      **COMPLETED**: 20241231-195700
+      - [I] These are generated/deployed artifacts, not user-edited files.
+      **COMPLETED**: 20241231-195700
+      - [I] Add `-SkipDeploy` parameter if users want to skip file deployment.
+      **COMPLETED**: 20241231-195700
+1. [I] BUG: The frontmatter for `EventsSummary.md` should be:
+    "-cssclasses: obsidianObserverEventsTable"
+  **COMPLETED**: 20241231-200000
+1. [I] Remove references to non-existent CSS files and clean up documentation
+  **COMPLETED**: 20241231-201500
+
+1. [I] Fix file explorer refresh issue - _debug directory doesn't appear in Obsidian UI until restart
+  **COMPLETED**: 20241231-202000

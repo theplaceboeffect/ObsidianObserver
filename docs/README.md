@@ -107,8 +107,7 @@ _debug/
 
 obsidian/
 └── snippets/
-    ├── dataview-table-fixes.css       # CSS styling for DataView tables
-    └── widen-property-name.css        # CSS for widening property name columns
+    └── obsidianObserverEventsTable.css  # CSS styling for event summary tables
 ```
 
 ## Event Note Format
@@ -198,18 +197,15 @@ The plugin provides several ribbon icons for manual control:
 ## Development
 
 ### Building the Plugin
-```bash
+```powershell
 # Auto-detect version from directory name (recommended)
-./bin/build.sh
+./bin/build.ps1
 
 # Build with custom options (auto-detects version)
-./bin/build.sh -s -p  # Skip dependencies, create package
-./bin/build.sh -n "TestVault"  # Update specific vault
+./bin/build.ps1 -SkipDependencies -CreatePackage  # Skip dependencies, create package
+./bin/build.ps1 -VaultName "TestVault"  # Update specific vault
 
 # Build with manual version specification
-./bin/build.sh -v "00.01.10"
-
-# PowerShell equivalent
 ./bin/build.ps1 -BuildVersion "00.01.10"
 ```
 

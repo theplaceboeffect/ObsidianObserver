@@ -11,24 +11,31 @@
 .PARAMETER VaultPath
     Required path to the Obsidian vault where the plugin should be deployed
 
-.PARAMETER Force
-    Force overwrite of existing plugin files
+.PARAMETER SkipDeploy
+    Skip deployment of plugin files (useful for testing or when files are already up to date)
 
 .PARAMETER VerboseOutput
     Enable verbose output
+
+.PARAMETER RemoveObsidianObserver
+    Remove all ObsidianObserver artifacts from the vault (plugin, debug folder, CSS files)
 
 .EXAMPLE
     .\deploy.ps1 -VaultPath "C:\Users\username\Documents\MyVault"
 
 .EXAMPLE
-    .\deploy.ps1 -VaultPath "C:\Users\username\Documents\MyVault" -Force -VerboseOutput
+    .\deploy.ps1 -VaultPath "C:\Users\username\Documents\MyVault" -SkipDeploy -VerboseOutput
+
+.EXAMPLE
+    .\deploy.ps1 -VaultPath "C:\Users\username\Documents\MyVault" -RemoveObsidianObserver
 #>
 
 param(
     [Parameter(Mandatory=$true)]
     [string]$VaultPath,
-    [switch]$Force,
-    [switch]$VerboseOutput
+    [switch]$SkipDeploy,
+    [switch]$VerboseOutput,
+    [switch]$RemoveObsidianObserver
 )
 
 # Set error action preference
@@ -125,9 +132,12 @@ function New-ObsidianStructure {
 
 # Function to deploy plugin files
 function Deploy-PluginFiles {
-    param([string]$VaultPath, [string]$PluginName)
+    param([string]$VaultPath, [string]$PluginName, [bool]$SkipDeploy = $false)
     
     $pluginDir = Join-Path $VaultPath ".obsidian" "plugins" $PluginName
+    
+    # Resolve to absolute path
+    $pluginDir = [System.IO.Path]::GetFullPath($pluginDir)
     
     # Create plugin directory
     if (!(Test-Path $pluginDir)) {
@@ -137,8 +147,8 @@ function Deploy-PluginFiles {
     
     # Get script directory and project paths
     $ScriptDir = Split-Path -Parent $PSCommandPath
-    $PluginDir = Split-Path -Parent $ScriptDir
-    $BuildDir = Join-Path $PluginDir "build"
+    $ProjectDir = Split-Path -Parent $ScriptDir
+    $BuildDir = Join-Path $ProjectDir "build"
     
     # Define source files
     $sourceFiles = @{
@@ -149,14 +159,14 @@ function Deploy-PluginFiles {
     # Copy files
     foreach ($file in $sourceFiles.Keys) {
         $sourcePath = $sourceFiles[$file]
-        $destPath = Join-Path $pluginDir $file
+        $destPath = "$pluginDir/$file"
         
         if (Test-Path $sourcePath) {
-            if ($Force -or !(Test-Path $destPath)) {
+            if (!$SkipDeploy) {
                 Copy-Item -Path $sourcePath -Destination $destPath -Force
                 Write-ColorOutput "  📄 Deployed $file" $Gray
             } else {
-                Write-ColorOutput "  ⏭️  Skipped $file (use -Force to overwrite)" $Yellow
+                Write-ColorOutput "  ⏭️  Skipped $file (use -SkipDeploy to skip deployment)" $Yellow
             }
         } else {
             Write-ColorOutput "  ❌ Source file not found: $sourcePath" $Red
@@ -169,27 +179,27 @@ function Deploy-PluginFiles {
 
 # Function to deploy CSS snippets
 function Deploy-CssSnippets {
-    param([string]$VaultPath)
+    param([string]$VaultPath, [bool]$SkipDeploy = $false)
     
     $snippetsPath = Join-Path $VaultPath ".obsidian" "snippets"
     
     # Define CSS files to deploy
-    $cssFiles = @("dataview-table-fixes.css", "widen-property-name.css", "obsidianObserverEventsTable.css")
+    $cssFiles = @("obsidianObserverEventsTable.css")
     
     # Get script directory and project paths
     $ScriptDir = Split-Path -Parent $PSCommandPath
-    $PluginDir = Split-Path -Parent $ScriptDir
+    $ProjectDir = Split-Path -Parent $ScriptDir
     
     foreach ($cssFile in $cssFiles) {
-        $cssSourcePath = Join-Path $PluginDir "obsidian" "snippets" $cssFile
+        $cssSourcePath = Join-Path $ProjectDir "obsidian" "snippets" $cssFile
         $cssDestPath = Join-Path $snippetsPath $cssFile
         
         if (Test-Path $cssSourcePath) {
-            if ($Force -or !(Test-Path $cssDestPath)) {
+            if (!$SkipDeploy) {
                 Copy-Item -Path $cssSourcePath -Destination $cssDestPath -Force
                 Write-ColorOutput "  📄 Deployed CSS snippet: $cssFile" $Gray
             } else {
-                Write-ColorOutput "  ⏭️  Skipped CSS snippet: $cssFile (use -Force to overwrite)" $Yellow
+                Write-ColorOutput "  ⏭️  Skipped CSS snippet: $cssFile (use -SkipDeploy to skip deployment)" $Yellow
             }
         } else {
             Write-ColorOutput "  ❌ CSS source file not found: $cssSourcePath" $Red
@@ -224,53 +234,121 @@ function Update-AppJson {
         $appConfig.plugins = @{}
     }
     
-    # Enable the plugin
-    $appConfig.plugins.$PluginName = $true
+    # Handle case where plugins might be read-only or have different structure
+    try {
+        # Enable the plugin
+        $appConfig.plugins.$PluginName = $true
+        
+        # Save app.json
+        $appConfig | ConvertTo-Json -Depth 10 | Set-Content $appJsonPath -Encoding UTF8
+        Write-ColorOutput "  📄 Updated app.json to enable plugin" $Gray
+    } catch {
+        Write-ColorOutput "  ⚠️  Could not update app.json: $($_.Exception.Message)" $Yellow
+        Write-ColorOutput "  💡 Plugin files deployed but may need manual enabling in Obsidian settings" $Yellow
+    }
+}
+
+# Function to remove ObsidianObserver artifacts
+function Remove-ObsidianObserver {
+    param([string]$VaultPath)
     
-    # Save app.json
-    $appConfig | ConvertTo-Json -Depth 10 | Set-Content $appJsonPath -Encoding UTF8
-    Write-ColorOutput "  📄 Updated app.json to enable plugin" $Gray
+    Write-ColorOutput "🗑️  Removing ObsidianObserver artifacts..." $Yellow
+    
+    # Remove plugin directory
+    $pluginDir = Join-Path $VaultPath ".obsidian" "plugins" "obsidian-observer"
+    if (Test-Path $pluginDir) {
+        Remove-Item -Path $pluginDir -Recurse -Force
+        Write-ColorOutput "  🗑️  Removed plugin directory: $pluginDir" $Gray
+    } else {
+        Write-ColorOutput "  ⚠️  Plugin directory not found: $pluginDir" $Yellow
+    }
+    
+    # Remove _debug folder
+    $debugDir = Join-Path $VaultPath "_debug"
+    if (Test-Path $debugDir) {
+        Remove-Item -Path $debugDir -Recurse -Force
+        Write-ColorOutput "  🗑️  Removed _debug folder: $debugDir" $Gray
+    } else {
+        Write-ColorOutput "  ⚠️  _debug folder not found: $debugDir" $Yellow
+    }
+    
+    # Remove CSS files
+    $cssFiles = @("obsidianObserverEventsTable.css")
+    $snippetsPath = Join-Path $VaultPath ".obsidian" "snippets"
+    
+    foreach ($cssFile in $cssFiles) {
+        $cssPath = Join-Path $snippetsPath $cssFile
+        if (Test-Path $cssPath) {
+            Remove-Item -Path $cssPath -Force
+            Write-ColorOutput "  🗑️  Removed CSS file: $cssFile" $Gray
+        } else {
+            Write-ColorOutput "  ⚠️  CSS file not found: $cssFile" $Yellow
+        }
+    }
+    
+    # Disable plugin in app.json
+    $appJsonPath = Join-Path $VaultPath ".obsidian" "app.json"
+    if (Test-Path $appJsonPath) {
+        try {
+            $appConfig = Get-Content $appJsonPath | ConvertFrom-Json
+            if ($appConfig.plugins -and $appConfig.plugins."obsidian-observer") {
+                $appConfig.plugins."obsidian-observer" = $false
+                $appConfig | ConvertTo-Json -Depth 10 | Set-Content $appJsonPath -Encoding UTF8
+                Write-ColorOutput "  📄 Disabled plugin in app.json" $Gray
+            }
+        } catch {
+            Write-ColorOutput "  ⚠️  Could not update app.json" $Yellow
+        }
+    }
+    
+    Write-ColorOutput "✅ ObsidianObserver artifacts removed successfully!" $Green
 }
 
 # Main execution
 try {
-    # Get plugin version
-    $pluginVersion = Get-PluginVersion
-    
-    Write-ColorOutput "🚀 Deploying ObsidianObserver Plugin" $Cyan
-    Write-ColorOutput "Version: $pluginVersion" $Cyan
-    Write-ColorOutput "Vault Path: $VaultPath" $Gray
-    
-    if ($VerboseOutput) {
-        Write-ColorOutput "Verbose mode enabled" $Gray
-    }
-    
     # Validate vault path
     if (!(Test-VaultPath $VaultPath)) {
         exit 1
     }
     
-    # Create Obsidian directory structure
-    New-ObsidianStructure $VaultPath
-    
-    # Deploy plugin files
-    $pluginName = "obsidian-observer"
-    if (!(Deploy-PluginFiles $VaultPath $pluginName)) {
-        Write-ColorOutput "Error: Failed to deploy plugin files" $Red
-        exit 1
+    if ($RemoveObsidianObserver) {
+        # Remove ObsidianObserver artifacts
+        Remove-ObsidianObserver $VaultPath
+    } else {
+        # Deploy ObsidianObserver plugin
+        # Get plugin version
+        $pluginVersion = Get-PluginVersion
+        
+        Write-ColorOutput "🚀 Deploying ObsidianObserver Plugin" $Cyan
+        Write-ColorOutput "Version: $pluginVersion" $Cyan
+        Write-ColorOutput "Vault Path: $VaultPath" $Gray
+        
+        if ($VerboseOutput) {
+            Write-ColorOutput "Verbose mode enabled" $Gray
+        }
+        
+        # Create Obsidian directory structure
+        New-ObsidianStructure $VaultPath
+        
+        # Deploy plugin files
+        $pluginName = "obsidian-observer"
+        if (!(Deploy-PluginFiles $VaultPath $pluginName $SkipDeploy)) {
+            Write-ColorOutput "Error: Failed to deploy plugin files" $Red
+            exit 1
+        }
+        
+        # Deploy CSS snippets
+        Deploy-CssSnippets $VaultPath $SkipDeploy
+        
+        # Update app.json
+        Update-AppJson $VaultPath $pluginName
+        
+        Write-ColorOutput "✅ Plugin deployed successfully!" $Green
+        Write-ColorOutput "📁 Plugin location: $(Join-Path $VaultPath '.obsidian' 'plugins' $pluginName)" $Cyan
+        Write-ColorOutput "💡 Restart Obsidian or reload the vault to activate the plugin" $Yellow
     }
     
-    # Deploy CSS snippets
-    Deploy-CssSnippets $VaultPath
-    
-    # Update app.json
-    Update-AppJson $VaultPath $pluginName
-    
-    Write-ColorOutput "✅ Plugin deployed successfully!" $Green
-    Write-ColorOutput "📁 Plugin location: $(Join-Path $VaultPath '.obsidian' 'plugins' $pluginName)" $Cyan
-    Write-ColorOutput "💡 Restart Obsidian or reload the vault to activate the plugin" $Yellow
-    
 } catch {
-    Write-ColorOutput "Error: Deployment failed: $($_.Exception.Message)" $Red
+    Write-ColorOutput "Error: Operation failed: $($_.Exception.Message)" $Red
     exit 1
 }

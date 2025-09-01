@@ -19,23 +19,20 @@ A comprehensive Obsidian plugin that tracks file events (open, save, close) and 
 3. Enable the plugin in Obsidian settings
 
 ### Deployment
-Use the provided deployment scripts to deploy the plugin:
+Use the provided PowerShell deployment script to deploy the plugin:
 
-```bash
-# Deploy to existing vault (Bash)
-./bin/deploy.sh "/path/to/your/vault"
-
-# Deploy with force overwrite
-./bin/deploy.sh "/path/to/your/vault" -f
-
-# Deploy with verbose output
-./bin/deploy.sh "/path/to/your/vault" -v
-
-# Deploy to existing vault (PowerShell)
+```powershell
+# Deploy to existing vault
 ./bin/deploy.ps1 -VaultPath "C:\path\to\your\vault"
 
-# Deploy with force overwrite (PowerShell)
-./bin/deploy.ps1 -VaultPath "C:\path\to\your\vault" -Force -Verbose
+# Deploy with verbose output
+./bin/deploy.ps1 -VaultPath "C:\path\to\your\vault" -VerboseOutput
+
+# Skip file deployment (useful for testing)
+./bin/deploy.ps1 -VaultPath "C:\path\to\your\vault" -SkipDeploy
+
+# Remove all ObsidianObserver artifacts from vault
+./bin/deploy.ps1 -VaultPath "C:\path\to\your\vault" -RemoveObsidianObserver
 ```
 
 ## Documentation
@@ -49,16 +46,16 @@ See `docs/README.md` for comprehensive documentation including:
 ## Development
 
 ### Building
-```bash
+```powershell
 # Standard build
 npm run build
 
 # Build with version parameterization (recommended)
-./bin/build.sh -v "00.01.17"
+./bin/build.ps1 -BuildVersion "00.01.17"
 
 # Build with custom options
-./bin/build.sh -v "00.01.17" -s -p  # Skip dependencies, create package
-./bin/build.sh -v "00.01.17" -n "TestVault"  # Update specific vault
+./bin/build.ps1 -BuildVersion "00.01.17" -SkipDependencies -CreatePackage
+./bin/build.ps1 -BuildVersion "00.01.17" -VaultName "TestVault"  # Update specific vault
 ```
 
 ### Testing

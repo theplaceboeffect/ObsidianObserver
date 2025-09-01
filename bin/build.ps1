@@ -183,13 +183,14 @@ try {
         Write-Host "  ⚠️  CSS file not found: $cssPath" -ForegroundColor Yellow
     }
 
-    # Update EventsSummary.md version in logger.ts
+    # Update EventsSummary.md and _summary.md versions in logger.ts
     $loggerPath = Join-Path $PluginDir "src" "logger.ts"
     if (Test-Path $loggerPath) {
         $loggerContent = Get-Content $loggerPath -Raw
-        $loggerContent = $loggerContent -replace 'version: "[^"]*"', "version: `"$BuildVersion`""
+        # Update version in both summary files
+        $loggerContent = $loggerContent -replace 'version: "`${this\.getPluginVersion\(\)}"', "version: `"$fullVersion`""
         Set-Content -Path $loggerPath -Value $loggerContent -NoNewline
-        Write-Host "  ✅ Updated EventsSummary.md version to $BuildVersion" -ForegroundColor Green
+        Write-Host "  ✅ Updated EventsSummary.md and _summary.md versions to $fullVersion" -ForegroundColor Green
     } else {
         Write-Host "  ⚠️  Logger file not found: $loggerPath" -ForegroundColor Yellow
     }

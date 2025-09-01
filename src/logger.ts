@@ -26,17 +26,20 @@ export class EventLogger {
       const dirExists = this.app.vault.getAbstractFileByPath(eventsDir);
       
       if (!dirExists) {
-        // Create the events directory
-        try {
-          await this.app.vault.createFolder(eventsDir);
-          console.log(`[ObsidianObserver] Created events directory: ${eventsDir}`);
-        } catch (createError: any) {
-          if (createError.message && createError.message.includes('already exists')) {
-            console.log(`[ObsidianObserver] Events directory already exists: ${eventsDir}`);
-          } else {
-            throw createError;
-          }
+              // Create the events directory
+      try {
+        await this.app.vault.createFolder(eventsDir);
+        console.log(`[ObsidianObserver] Created events directory: ${eventsDir}`);
+        
+        // Refresh the file explorer to show the new directory
+        this.app.workspace.trigger('file-explorer:refresh');
+      } catch (createError: any) {
+        if (createError.message && createError.message.includes('already exists')) {
+          console.log(`[ObsidianObserver] Events directory already exists: ${eventsDir}`);
+        } else {
+          throw createError;
         }
+      }
       } else {
         console.log(`[ObsidianObserver] Events directory already exists: ${eventsDir}`);
       }
@@ -125,6 +128,9 @@ export class EventLogger {
       await this.app.vault.create(filePath, noteContent);
       console.log(`[ObsidianObserver] Created event note: ${filePath}`);
       
+      // Refresh the file explorer to show the new file
+      this.app.workspace.trigger('file-explorer:refresh');
+      
     } catch (error) {
       console.error(`[ObsidianObserver] Error creating event note:`, error);
     }
@@ -179,11 +185,15 @@ OOEvent_PluginVersion: ${frontmatter.OOEvent_PluginVersion}`;
 aliases: [ObsidianObserver Events Summary, Events Summary]
 tags: [obsidian-explorer, summary, events]
 type: events-summary
+version: "${this.getPluginVersion()}"
+cssclasses: obsidianObserverEventsTable
 ---
 
 # ObsidianObserver Events Summary
 
 This file provides a summary of all ObsidianObserver events.
+
+> **Note**: This summary uses the \`obsidianObserverEventsTable\` CSS class for enhanced table styling. The CSS class is automatically applied to this note.
 
 ## DataView Query Examples
 
@@ -317,6 +327,9 @@ LIMIT 30
       await this.app.vault.create(summaryPath, summaryContent);
       console.log(`[ObsidianObserver] Created summary file: ${summaryPath}`);
       
+      // Refresh the file explorer to show the new file
+      this.app.workspace.trigger('file-explorer:refresh');
+      
     } catch (error) {
       console.error(`[ObsidianObserver] Error creating summary file:`, error);
     }
@@ -331,11 +344,15 @@ LIMIT 30
 aliases: [ObsidianObserver Main Summary, Events Summary]
 tags: [obsidian-explorer, summary, events, main]
 type: events-summary
+version: "${this.getPluginVersion()}"
+cssclasses: obsidianObserverEventsTable
 ---
 
 # ObsidianObserver Events Summary
 
 This file provides comprehensive DataView reports for common use-cases with ObsidianObserver events.
+
+> **Note**: This summary uses the \`obsidianObserverEventsTable\` CSS class for enhanced table styling. The CSS class is automatically applied to this note.
 
 ## Quick Overview
 
@@ -596,8 +613,12 @@ WHERE OOEvent_GUID = "YOUR_GUID_HERE"
       await this.app.vault.create(summaryPath, summaryContent);
       console.log(`[ObsidianObserver] Created main summary file: ${summaryPath}`);
       
+      // Refresh the file explorer to show the new file
+      this.app.workspace.trigger('file-explorer:refresh');
+      
     } catch (error) {
       console.error(`[ObsidianObserver] Error creating main summary file:`, error);
     }
   }
+
 }
