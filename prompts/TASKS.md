@@ -228,3 +228,32 @@ Expected one of the following:
 
 1. [I] Remove filesize from the frontmatter.
   **COMPLETED**: 20250829-223000
+
+1. [I] Create the file '.obsidian/snippets/obsidianObserverEventsTable.css` if it doesn't exit.
+  **COMPLETED**: 20241229-230000
+  - [I] Overwrite with the version in the app if the file system version is different.
+  **COMPLETED**: 20241229-230000
+
+1. [I] Update all queries in `EventsSummary.md` with the following conventions:
+  **COMPLETED**: 20241229-231500
+  - [I] `TABLE WITHOUT ID` - do not show the filename
+  **COMPLETED**: 20241229-231500
+  - [I] `regexreplace(OOEvent_FileName, ".md$", "") AS "File",` - shorten the filename
+  **COMPLETED**: 20241229-231500
+  - [I] `upper(OOEvent_Type) AS "Type",` - normalize the event type.
+  **COMPLETED**: 20241229-231500
+  - [I] `dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"` shorten timestamp
+  **COMPLETED**: 20241229-231500
+
+1. [I] Version everything with v00.00.02
+  **COMPLETED**: 20241229-232000
+      - [I] Update the plugin version.
+      **COMPLETED**: 20241229-232000
+      - [I] Update the `obsidianObserverEventsTable.css`
+      **COMPLETED**: 20241229-232000
+      - [I] Update the version of the `EventsSummary.md` file with the version in the frontmatter.
+      **COMPLETED**: 20241229-232000
+  [I] Update the `build.*` to ensure the versions are updated with every build.
+  **COMPLETED**: 20241229-232500
+  [I] BUG: I switched to branch `v00.00.02` and build.ps1  script is still building `v00.00.01`
+  **COMPLETED**: 20241229-233000

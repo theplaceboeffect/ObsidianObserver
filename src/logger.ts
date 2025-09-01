@@ -6,21 +6,16 @@ export class EventLogger {
   private config: LoggerConfig;
   private logBuffer: EventLog[] = [];
   private maxBufferSize = 3; // Reduced from 10 to 3 for more frequent writes
+  private pluginVersion: string;
 
-  constructor(app: App, config: LoggerConfig) {
+  constructor(app: App, config: LoggerConfig, pluginVersion: string = 'unknown') {
     this.app = app;
     this.config = config;
+    this.pluginVersion = pluginVersion;
   }
 
   private getPluginVersion(): string {
-    try {
-      // Try to get version from manifest.json
-      const manifest = require('../../manifest.json');
-      return manifest.version || 'unknown';
-    } catch (error) {
-      console.warn('[ObsidianObserver] Could not read plugin version from manifest.json');
-      return 'unknown';
-    }
+    return this.pluginVersion;
   }
 
   async ensureEventsDirectoryExists(): Promise<void> {
@@ -346,7 +341,10 @@ This file provides comprehensive DataView reports for common use-cases with Obsi
 
 ### Recent Activity (Last 20 Events)
 \`\`\`dataview
-TABLE OOEvent_FileName, OOEvent_Type, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 SORT OOEvent_Timestamp DESC
 LIMIT 20
@@ -362,7 +360,9 @@ SORT Count DESC
 
 ### Most Active Files
 \`\`\`dataview
-TABLE OOEvent_FileName, length(rows) as "Total Events", 
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  length(rows) as "Total Events", 
   length(filter(rows, r => r.OOEvent_Type = "open")) as "Opens",
   length(filter(rows, r => r.OOEvent_Type = "save")) as "Saves",
   length(filter(rows, r => r.OOEvent_Type = "close")) as "Closes"
@@ -376,7 +376,10 @@ LIMIT 15
 
 ### Recent File Opens
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_FileName, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE OOEvent_Type = "open"
 SORT OOEvent_Timestamp DESC
@@ -385,7 +388,10 @@ LIMIT 10
 
 ### Recent File Saves
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_FileName, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE OOEvent_Type = "save"
 SORT OOEvent_Timestamp DESC
@@ -394,7 +400,10 @@ LIMIT 10
 
 ### Recent File Closes
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_FileName, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE OOEvent_Type = "close"
 SORT OOEvent_Timestamp DESC
@@ -405,7 +414,10 @@ LIMIT 10
 
 ### Recently Created Files
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_FileName, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE OOEvent_Type = "create"
 SORT OOEvent_Timestamp DESC
@@ -414,7 +426,10 @@ LIMIT 10
 
 ### Recently Deleted Files
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_FileName, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE OOEvent_Type = "delete"
 SORT OOEvent_Timestamp DESC
@@ -423,7 +438,12 @@ LIMIT 10
 
 ### Recently Renamed Files
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_FileName, OOEvent_OldPath, OOEvent_NewPath, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  OOEvent_OldPath AS "Old Path",
+  OOEvent_NewPath AS "New Path",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE OOEvent_Type = "rename"
 SORT OOEvent_Timestamp DESC
@@ -434,7 +454,10 @@ LIMIT 10
 
 ### Project-Related Activity
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE contains(OOEvent_FilePath, "Projects")
 SORT OOEvent_Timestamp DESC
@@ -443,7 +466,10 @@ LIMIT 15
 
 ### People-Related Activity
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE contains(OOEvent_FilePath, "People")
 SORT OOEvent_Timestamp DESC
@@ -452,7 +478,10 @@ LIMIT 15
 
 ### Meeting-Related Activity
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE contains(OOEvent_FileName, "Meeting")
 SORT OOEvent_Timestamp DESC
@@ -463,7 +492,10 @@ LIMIT 15
 
 ### Today's Activity
 \`\`\`dataview
-TABLE OOEvent_FileName, OOEvent_Type, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE date(OOEvent_Timestamp) = date(today)
 SORT OOEvent_Timestamp DESC
@@ -471,7 +503,10 @@ SORT OOEvent_Timestamp DESC
 
 ### This Week's Activity
 \`\`\`dataview
-TABLE OOEvent_FileName, OOEvent_Type, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE date(OOEvent_Timestamp) >= date(today) - dur(7 days)
 SORT OOEvent_Timestamp DESC
@@ -490,7 +525,11 @@ LIMIT 30
 
 ### Files with Size Information
 \`\`\`dataview
-TABLE OOEvent_FileName, OOEvent_FileSize, OOEvent_Type, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  OOEvent_FileSize AS "Size",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE OOEvent_FileSize
 SORT OOEvent_FileSize DESC
@@ -501,7 +540,10 @@ LIMIT 10
 
 ### Search by File Name
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_Type, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE contains(OOEvent_FileName, "YOUR_SEARCH_TERM")
 SORT OOEvent_Timestamp DESC
@@ -509,7 +551,11 @@ SORT OOEvent_Timestamp DESC
 
 ### Search by GUID
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_Timestamp
+TABLE WITHOUT ID
+  OOEvent_GUID AS "GUID",
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE OOEvent_GUID = "YOUR_GUID_HERE"
 \`\`\`

@@ -35,11 +35,15 @@ var import_obsidian2 = __toModule(require("obsidian"));
 
 // src/logger.ts
 var EventLogger = class {
-  constructor(app, config) {
+  constructor(app, config, pluginVersion = "unknown") {
     this.logBuffer = [];
     this.maxBufferSize = 3;
     this.app = app;
     this.config = config;
+    this.pluginVersion = pluginVersion;
+  }
+  getPluginVersion() {
+    return this.pluginVersion;
   }
   async ensureEventsDirectoryExists() {
     try {
@@ -90,7 +94,7 @@ var EventLogger = class {
     }
   }
   async createEventNote(eventLog) {
-    var _a, _b, _c, _d, _e, _f;
+    var _a, _b, _c, _d, _e;
     try {
       const eventsDir = this.config.eventsDirectory;
       const fileName = `${eventLog.guid}.md`;
@@ -109,11 +113,11 @@ var EventLogger = class {
         OOEvent_VaultName: eventLog.vaultName,
         OOEvent_LastModified: ((_a = eventLog.metadata) == null ? void 0 : _a.lastModified) || "",
         OOEvent_Created: new Date().toISOString(),
-        OOEvent_FileSize: (_b = eventLog.metadata) == null ? void 0 : _b.fileSize,
-        OOEvent_OldPath: (_c = eventLog.metadata) == null ? void 0 : _c.oldPath,
-        OOEvent_NewPath: (_d = eventLog.metadata) == null ? void 0 : _d.newPath,
-        OOEvent_SourcePath: (_e = eventLog.metadata) == null ? void 0 : _e.sourcePath,
-        OOEvent_TargetPath: (_f = eventLog.metadata) == null ? void 0 : _f.targetPath
+        OOEvent_OldPath: (_b = eventLog.metadata) == null ? void 0 : _b.oldPath,
+        OOEvent_NewPath: (_c = eventLog.metadata) == null ? void 0 : _c.newPath,
+        OOEvent_SourcePath: (_d = eventLog.metadata) == null ? void 0 : _d.sourcePath,
+        OOEvent_TargetPath: (_e = eventLog.metadata) == null ? void 0 : _e.targetPath,
+        OOEvent_PluginVersion: this.getPluginVersion()
       };
       const noteContent = this.createNoteContent(frontmatter, eventLog);
       const existingFile = this.app.vault.getAbstractFileByPath(filePath);
@@ -141,11 +145,8 @@ OOEvent_FilePath: ${frontmatter.OOEvent_FilePath}
 OOEvent_FileName: ${frontmatter.OOEvent_FileName}
 OOEvent_VaultName: ${frontmatter.OOEvent_VaultName}
 OOEvent_LastModified: ${frontmatter.OOEvent_LastModified}
-OOEvent_Created: ${frontmatter.OOEvent_Created}`;
-    if (frontmatter.OOEvent_FileSize) {
-      frontmatterFields += `
-OOEvent_FileSize: ${frontmatter.OOEvent_FileSize}`;
-    }
+OOEvent_Created: ${frontmatter.OOEvent_Created}
+OOEvent_PluginVersion: ${frontmatter.OOEvent_PluginVersion}`;
     if (frontmatter.OOEvent_OldPath) {
       frontmatterFields += `
 OOEvent_OldPath: ${frontmatter.OOEvent_OldPath}`;
@@ -329,7 +330,10 @@ This file provides comprehensive DataView reports for common use-cases with Obsi
 
 ### Recent Activity (Last 20 Events)
 \`\`\`dataview
-TABLE OOEvent_FileName, OOEvent_Type, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 SORT OOEvent_Timestamp DESC
 LIMIT 20
@@ -345,7 +349,9 @@ SORT Count DESC
 
 ### Most Active Files
 \`\`\`dataview
-TABLE OOEvent_FileName, length(rows) as "Total Events", 
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  length(rows) as "Total Events", 
   length(filter(rows, r => r.OOEvent_Type = "open")) as "Opens",
   length(filter(rows, r => r.OOEvent_Type = "save")) as "Saves",
   length(filter(rows, r => r.OOEvent_Type = "close")) as "Closes"
@@ -359,7 +365,10 @@ LIMIT 15
 
 ### Recent File Opens
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_FileName, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE OOEvent_Type = "open"
 SORT OOEvent_Timestamp DESC
@@ -368,7 +377,10 @@ LIMIT 10
 
 ### Recent File Saves
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_FileName, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE OOEvent_Type = "save"
 SORT OOEvent_Timestamp DESC
@@ -377,7 +389,10 @@ LIMIT 10
 
 ### Recent File Closes
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_FileName, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE OOEvent_Type = "close"
 SORT OOEvent_Timestamp DESC
@@ -388,7 +403,10 @@ LIMIT 10
 
 ### Recently Created Files
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_FileName, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE OOEvent_Type = "create"
 SORT OOEvent_Timestamp DESC
@@ -397,7 +415,10 @@ LIMIT 10
 
 ### Recently Deleted Files
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_FileName, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE OOEvent_Type = "delete"
 SORT OOEvent_Timestamp DESC
@@ -406,7 +427,12 @@ LIMIT 10
 
 ### Recently Renamed Files
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_FileName, OOEvent_OldPath, OOEvent_NewPath, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  OOEvent_OldPath AS "Old Path",
+  OOEvent_NewPath AS "New Path",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE OOEvent_Type = "rename"
 SORT OOEvent_Timestamp DESC
@@ -417,7 +443,10 @@ LIMIT 10
 
 ### Project-Related Activity
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE contains(OOEvent_FilePath, "Projects")
 SORT OOEvent_Timestamp DESC
@@ -426,7 +455,10 @@ LIMIT 15
 
 ### People-Related Activity
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE contains(OOEvent_FilePath, "People")
 SORT OOEvent_Timestamp DESC
@@ -435,7 +467,10 @@ LIMIT 15
 
 ### Meeting-Related Activity
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE contains(OOEvent_FileName, "Meeting")
 SORT OOEvent_Timestamp DESC
@@ -446,7 +481,10 @@ LIMIT 15
 
 ### Today's Activity
 \`\`\`dataview
-TABLE OOEvent_FileName, OOEvent_Type, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE date(OOEvent_Timestamp) = date(today)
 SORT OOEvent_Timestamp DESC
@@ -454,7 +492,10 @@ SORT OOEvent_Timestamp DESC
 
 ### This Week's Activity
 \`\`\`dataview
-TABLE OOEvent_FileName, OOEvent_Type, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE date(OOEvent_Timestamp) >= date(today) - dur(7 days)
 SORT OOEvent_Timestamp DESC
@@ -473,7 +514,11 @@ LIMIT 30
 
 ### Files with Size Information
 \`\`\`dataview
-TABLE OOEvent_FileName, OOEvent_FileSize, OOEvent_Type, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  OOEvent_FileSize AS "Size",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE OOEvent_FileSize
 SORT OOEvent_FileSize DESC
@@ -484,7 +529,10 @@ LIMIT 10
 
 ### Search by File Name
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_Type, OOEvent_Timestamp
+TABLE WITHOUT ID
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE contains(OOEvent_FileName, "YOUR_SEARCH_TERM")
 SORT OOEvent_Timestamp DESC
@@ -492,7 +540,11 @@ SORT OOEvent_Timestamp DESC
 
 ### Search by GUID
 \`\`\`dataview
-TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_Timestamp
+TABLE WITHOUT ID
+  OOEvent_GUID AS "GUID",
+  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  upper(OOEvent_Type) AS "Type",
+  dateformat(OOEvent_Timestamp, "yyyy-MM-dd HH:mm") AS "When"
 FROM "_debug/events"
 WHERE OOEvent_GUID = "YOUR_GUID_HERE"
 \`\`\`
@@ -732,7 +784,7 @@ var ObsidianObserverPlugin = class extends import_obsidian2.Plugin {
         enableConsoleLog: true,
         includeMetadata: true
       };
-      this.logger = new EventLogger(this.app, loggerConfig);
+      this.logger = new EventLogger(this.app, loggerConfig, this.manifest.version);
       await this.logger.ensureEventsDirectoryExists();
       await this.logger.createSummaryNote();
       await this.logger.createMainSummaryNote();

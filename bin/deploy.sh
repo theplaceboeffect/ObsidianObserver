@@ -183,7 +183,7 @@ deploy_css_snippets() {
     local snippets_path="$vault_path/.obsidian/snippets"
     
     # Define CSS files to deploy
-    local css_files=("dataview-table-fixes.css" "widen-property-name.css")
+    local css_files=("dataview-table-fixes.css" "widen-property-name.css" "obsidianObserverEventsTable.css")
     
     # Get script directory and project paths
     local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

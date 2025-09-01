@@ -174,7 +174,7 @@ function Deploy-CssSnippets {
     $snippetsPath = Join-Path $VaultPath ".obsidian" "snippets"
     
     # Define CSS files to deploy
-    $cssFiles = @("dataview-table-fixes.css", "widen-property-name.css")
+    $cssFiles = @("dataview-table-fixes.css", "widen-property-name.css", "obsidianObserverEventsTable.css")
     
     # Get script directory and project paths
     $ScriptDir = Split-Path -Parent $PSCommandPath

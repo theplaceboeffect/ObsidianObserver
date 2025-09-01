@@ -28,7 +28,7 @@
     Create a distributable package after building
 
 .EXAMPLE
-    .\build.ps1                                    # Auto-detect version from directory name
+    .\build.ps1                                    # Auto-detect version from git branch or directory name
 
 .EXAMPLE
     .\build.ps1 -BuildVersion "00.01.08"          # Specify version manually
@@ -51,16 +51,37 @@ param(
 # Set error action preference
 $ErrorActionPreference = "Stop"
 
-# Auto-determine version from current directory name if not provided
+# Auto-determine version from git branch or current directory name if not provided
 if ([string]::IsNullOrEmpty($BuildVersion)) {
-    $currentDir = Split-Path -Leaf (Get-Location)
-    if ($currentDir -match '^v(\d{2}\.\d{2}\.\d{2})$') {
-        $BuildVersion = $matches[1]
-        Write-Host "📝 Auto-detected version from directory name: $BuildVersion" -ForegroundColor Yellow
-    } else {
-        Write-Error "Could not auto-detect version from directory name '$currentDir'. Please provide -BuildVersion parameter."
-        Write-Error "Expected directory format: vXX.XX.XX (e.g., 'v00.01.08')"
-        exit 1
+    # Try to get version from git branch first
+    try {
+        $gitBranch = git branch --show-current 2>$null
+        if ($gitBranch -and $gitBranch -match '^v(\d{2}\.\d{2}\.\d{2})$') {
+            $BuildVersion = $matches[1]
+            Write-Host "📝 Auto-detected version from git branch: $BuildVersion" -ForegroundColor Yellow
+        } else {
+            # Fall back to directory name
+            $currentDir = Split-Path -Leaf (Get-Location)
+            if ($currentDir -match '^v(\d{2}\.\d{2}\.\d{2})$') {
+                $BuildVersion = $matches[1]
+                Write-Host "📝 Auto-detected version from directory name: $BuildVersion" -ForegroundColor Yellow
+            } else {
+                Write-Error "Could not auto-detect version from git branch '$gitBranch' or directory name '$currentDir'. Please provide -BuildVersion parameter."
+                Write-Error "Expected format: vXX.XX.XX (e.g., 'v00.01.08')"
+                exit 1
+            }
+        }
+    } catch {
+        # Fall back to directory name if git command fails
+        $currentDir = Split-Path -Leaf (Get-Location)
+        if ($currentDir -match '^v(\d{2}\.\d{2}\.\d{2})$') {
+            $BuildVersion = $matches[1]
+            Write-Host "📝 Auto-detected version from directory name: $BuildVersion" -ForegroundColor Yellow
+        } else {
+            Write-Error "Could not auto-detect version from directory name '$currentDir'. Please provide -BuildVersion parameter."
+            Write-Error "Expected directory format: vXX.XX.XX (e.g., 'v00.01.08')"
+            exit 1
+        }
     }
 }
 
@@ -148,6 +169,29 @@ try {
     } else {
         Write-Error "package.json not found: $packagePath"
         exit 1
+    }
+
+    # Update CSS file version
+    $cssPath = Join-Path $PluginDir "obsidian" "snippets" "obsidianObserverEventsTable.css"
+    if (Test-Path $cssPath) {
+        $cssContent = Get-Content $cssPath -Raw
+        $cssVersion = "v$BuildVersion"
+        $cssContent = $cssContent -replace 'version: "v[^"]*"', "version: `"$cssVersion`""
+        Set-Content -Path $cssPath -Value $cssContent -NoNewline
+        Write-Host "  ✅ Updated CSS file version to $cssVersion" -ForegroundColor Green
+    } else {
+        Write-Host "  ⚠️  CSS file not found: $cssPath" -ForegroundColor Yellow
+    }
+
+    # Update EventsSummary.md version in logger.ts
+    $loggerPath = Join-Path $PluginDir "src" "logger.ts"
+    if (Test-Path $loggerPath) {
+        $loggerContent = Get-Content $loggerPath -Raw
+        $loggerContent = $loggerContent -replace 'version: "[^"]*"', "version: `"$BuildVersion`""
+        Set-Content -Path $loggerPath -Value $loggerContent -NoNewline
+        Write-Host "  ✅ Updated EventsSummary.md version to $BuildVersion" -ForegroundColor Green
+    } else {
+        Write-Host "  ⚠️  Logger file not found: $loggerPath" -ForegroundColor Yellow
     }
 
     # Step 2: Install dependencies (unless skipped)

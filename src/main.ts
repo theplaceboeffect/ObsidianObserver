@@ -20,7 +20,7 @@ export default class ObsidianObserverPlugin extends Plugin {
       };
 
       // Create logger instance
-      this.logger = new EventLogger(this.app, loggerConfig);
+      this.logger = new EventLogger(this.app, loggerConfig, this.manifest.version);
 
       // Ensure events directory exists
       await this.logger.ensureEventsDirectoryExists();

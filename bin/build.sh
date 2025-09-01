@@ -32,7 +32,7 @@ show_usage() {
     echo "Usage: $0 [-v <version>] [OPTIONS]"
     echo ""
     echo "Parameters:"
-    echo "  -v, --version VERSION    Build version (e.g., '00.01.08') - auto-detected from directory if not provided"
+    echo "  -v, --version VERSION    Build version (e.g., '00.01.08') - auto-detected from git branch or directory if not provided"
     echo ""
     echo "Options:"
     echo "  -n, --vault NAME         Vault name to update with the built plugin"
@@ -42,7 +42,7 @@ show_usage() {
     echo "  -h, --help               Show this help message"
     echo ""
     echo "Examples:"
-    echo "  $0                                    # Auto-detect version from directory name"
+    echo "  $0                                    # Auto-detect version from git branch or directory name"
     echo "  $0 -v '00.01.08'                      # Specify version manually"
     echo "  $0 -n TestSidian-ObsidianObserver    # Auto-detect version and update vault"
     echo "  $0 -s -p                             # Skip deps, create package, auto-detect version"
@@ -232,17 +232,39 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Auto-determine version from current directory name if not provided
+# Auto-determine version from git branch or current directory name if not provided
 if [ -z "$BUILD_VERSION" ]; then
-    current_dir=$(basename "$(pwd)")
-    if [[ $current_dir =~ ^v([0-9]{2}\.[0-9]{2}\.[0-9]{2})$ ]]; then
-        BUILD_VERSION="${BASH_REMATCH[1]}"
-        print_color $YELLOW "📝 Auto-detected version from directory name: $BUILD_VERSION"
+    # Try to get version from git branch first
+    if command -v git &> /dev/null; then
+        git_branch=$(git branch --show-current 2>/dev/null)
+        if [[ $git_branch =~ ^v([0-9]{2}\.[0-9]{2}\.[0-9]{2})$ ]]; then
+            BUILD_VERSION="${BASH_REMATCH[1]}"
+            print_color $YELLOW "📝 Auto-detected version from git branch: $BUILD_VERSION"
+        else
+            # Fall back to directory name
+            current_dir=$(basename "$(pwd)")
+            if [[ $current_dir =~ ^v([0-9]{2}\.[0-9]{2}\.[0-9]{2})$ ]]; then
+                BUILD_VERSION="${BASH_REMATCH[1]}"
+                print_color $YELLOW "📝 Auto-detected version from directory name: $BUILD_VERSION"
+            else
+                print_color $RED "Error: Could not auto-detect version from git branch '$git_branch' or directory name '$current_dir'"
+                print_color $RED "Please provide -v or --version parameter, or use format: vXX.XX.XX (e.g., 'v00.01.08')"
+                show_usage
+                exit 1
+            fi
+        fi
     else
-        print_color $RED "Error: Could not auto-detect version from directory name '$current_dir'"
-        print_color $RED "Please provide -v or --version parameter, or use directory format: vXX.XX.XX (e.g., 'v00.01.08')"
-        show_usage
-        exit 1
+        # Fall back to directory name if git command is not available
+        current_dir=$(basename "$(pwd)")
+        if [[ $current_dir =~ ^v([0-9]{2}\.[0-9]{2}\.[0-9]{2})$ ]]; then
+            BUILD_VERSION="${BASH_REMATCH[1]}"
+            print_color $YELLOW "📝 Auto-detected version from directory name: $BUILD_VERSION"
+        else
+            print_color $RED "Error: Could not auto-detect version from directory name '$current_dir'"
+            print_color $RED "Please provide -v or --version parameter, or use directory format: vXX.XX.XX (e.g., 'v00.01.08')"
+            show_usage
+            exit 1
+        fi
     fi
 fi
 
@@ -287,6 +309,37 @@ update_json_version "$PLUGIN_DIR/manifest.json" "$full_version" "manifest.json"
 
 # Update package.json
 update_json_version "$PLUGIN_DIR/package.json" "$full_version" "package.json"
+
+# Update CSS file version
+CSS_PATH="$PLUGIN_DIR/obsidian/snippets/obsidianObserverEventsTable.css"
+if [ -f "$CSS_PATH" ]; then
+    CSS_VERSION="v$BUILD_VERSION"
+    if command -v sed &> /dev/null; then
+        sed -i.bak "s/version: \"v[^\"]*\"/version: \"$CSS_VERSION\"/" "$CSS_PATH"
+        rm -f "${CSS_PATH}.bak"
+    else
+        print_color $RED "Error: sed command not available for CSS version update"
+        exit 1
+    fi
+    print_color $GREEN "  ✅ Updated CSS file version to $CSS_VERSION"
+else
+    print_color $YELLOW "  ⚠️  CSS file not found: $CSS_PATH"
+fi
+
+# Update EventsSummary.md version in logger.ts
+LOGGER_PATH="$PLUGIN_DIR/src/logger.ts"
+if [ -f "$LOGGER_PATH" ]; then
+    if command -v sed &> /dev/null; then
+        sed -i.bak "s/version: \"[^\"]*\"/version: \"$BUILD_VERSION\"/" "$LOGGER_PATH"
+        rm -f "${LOGGER_PATH}.bak"
+    else
+        print_color $RED "Error: sed command not available for logger version update"
+        exit 1
+    fi
+    print_color $GREEN "  ✅ Updated EventsSummary.md version to $BUILD_VERSION"
+else
+    print_color $YELLOW "  ⚠️  Logger file not found: $LOGGER_PATH"
+fi
 
 # Step 2: Install dependencies (unless skipped)
 if [ "$SKIP_DEPENDENCIES" = false ]; then
