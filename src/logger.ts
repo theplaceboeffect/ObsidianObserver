@@ -18,28 +18,37 @@ export class EventLogger {
     return this.pluginVersion;
   }
 
+  getConfig(): LoggerConfig {
+    return this.config;
+  }
+
+  updateConfig(newConfig: LoggerConfig) {
+    this.config = newConfig;
+    console.log('[ObsidianObserver] Logger configuration updated:', newConfig);
+  }
+
   async ensureEventsDirectoryExists(): Promise<void> {
     try {
-      const eventsDir = this.config.eventsDirectory;
+      const eventsDir = `${this.config.eventsFolder}/events`;
       
       // Check if the directory exists
       const dirExists = this.app.vault.getAbstractFileByPath(eventsDir);
       
       if (!dirExists) {
-              // Create the events directory
-      try {
-        await this.app.vault.createFolder(eventsDir);
-        console.log(`[ObsidianObserver] Created events directory: ${eventsDir}`);
-        
-        // Refresh the file explorer to show the new directory
-        this.app.workspace.trigger('file-explorer:refresh');
-      } catch (createError: any) {
-        if (createError.message && createError.message.includes('already exists')) {
-          console.log(`[ObsidianObserver] Events directory already exists: ${eventsDir}`);
-        } else {
-          throw createError;
+        // Create the events directory
+        try {
+          await this.app.vault.createFolder(eventsDir);
+          console.log(`[ObsidianObserver] Created events directory: ${eventsDir}`);
+          
+          // Refresh the file explorer to show the new directory
+          this.app.workspace.trigger('file-explorer:refresh');
+        } catch (createError: any) {
+          if (createError.message && createError.message.includes('already exists')) {
+            console.log(`[ObsidianObserver] Events directory already exists: ${eventsDir}`);
+          } else {
+            throw createError;
+          }
         }
-      }
       } else {
         console.log(`[ObsidianObserver] Events directory already exists: ${eventsDir}`);
       }
@@ -85,7 +94,7 @@ export class EventLogger {
 
   private async createEventNote(eventLog: EventLog): Promise<void> {
     try {
-      const eventsDir = this.config.eventsDirectory;
+      const eventsDir = `${this.config.eventsFolder}/events`;
       const fileName = `${eventLog.guid}.md`;
       const filePath = `${eventsDir}/${fileName}`;
       
@@ -173,7 +182,7 @@ OOEvent_PluginVersion: ${frontmatter.OOEvent_PluginVersion}`;
     // Create the note content - simplified to just frontmatter and link
     let noteContent = frontmatterFields;
     
-    // Only add file link if there's a file name (skip for quit/ready events)
+    // Only add file link if there's a file name (skip for quit/ready/PluginLoaded events)
     if (eventLog.fileName && eventLog.fileName.trim() !== '') {
       noteContent += `[[${eventLog.fileName}]]`;
     } else {
@@ -186,7 +195,7 @@ OOEvent_PluginVersion: ${frontmatter.OOEvent_PluginVersion}`;
   // Legacy method for backward compatibility - now creates a summary note
   async createSummaryNote(): Promise<void> {
     try {
-      const summaryPath = `${this.config.eventsDirectory}/_summary.md`;
+      const summaryPath = `${this.config.eventsFolder}/events/_summary.md`;
       
       const summaryContent = `---
 aliases: [ObsidianObserver Events Summary, Events Summary]
@@ -207,7 +216,7 @@ This file provides a summary of all ObsidianObserver events.
 ### Basic Event Queries
 \`\`\`dataview
 TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_VaultName, OOEvent_LocalTimestamp
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "open"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
@@ -215,7 +224,7 @@ LIMIT 10
 
 \`\`\`dataview
 TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_VaultName, OOEvent_LocalTimestamp
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "save"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 5
@@ -223,7 +232,7 @@ LIMIT 5
 
 \`\`\`dataview
 TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_VaultName, OOEvent_LocalTimestamp
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "close"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 5
@@ -232,7 +241,7 @@ LIMIT 5
 ### File Management Events
 \`\`\`dataview
 TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_VaultName, OOEvent_LocalTimestamp
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "create"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
@@ -240,7 +249,7 @@ LIMIT 10
 
 \`\`\`dataview
 TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_VaultName, OOEvent_LocalTimestamp
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "delete"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
@@ -248,7 +257,7 @@ LIMIT 10
 
 \`\`\`dataview
 TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_OldPath, OOEvent_NewPath, OOEvent_LocalTimestamp
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "rename"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
@@ -257,21 +266,21 @@ LIMIT 10
 ### Advanced Queries
 \`\`\`dataview
 TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_VaultName, OOEvent_Timestamp
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 WHERE contains(OOEvent_FilePath, "Projects")
 SORT OOEvent_Timestamp DESC
 \`\`\`
 
 \`\`\`dataview
 TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_VaultName, OOEvent_Timestamp
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_GUID = "ABC123DEF456GHI789JKL012"
 \`\`\`
 
 ### File Size Analysis
 \`\`\`dataview
 TABLE OOEvent_FileName, OOEvent_FileSize, OOEvent_Type, OOEvent_Timestamp
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_FileSize
 SORT OOEvent_FileSize DESC
 LIMIT 10
@@ -280,7 +289,7 @@ LIMIT 10
 ### Recent Activity
 \`\`\`dataview
 TABLE OOEvent_FileName, OOEvent_Type, OOEvent_Timestamp
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 SORT OOEvent_Timestamp DESC
 LIMIT 20
 \`\`\`
@@ -290,7 +299,7 @@ LIMIT 20
 ### Event Type Distribution
 \`\`\`dataview
 TABLE length(rows) as "Count"
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 GROUP BY OOEvent_Type
 SORT Count DESC
 \`\`\`
@@ -298,7 +307,7 @@ SORT Count DESC
 ### Vault Activity
 \`\`\`dataview
 TABLE length(rows) as "Count"
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 GROUP BY OOEvent_VaultName
 SORT Count DESC
 \`\`\`
@@ -306,7 +315,7 @@ SORT Count DESC
 ### File Activity
 \`\`\`dataview
 TABLE OOEvent_FileName, length(rows) as "Event Count"
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 GROUP BY OOEvent_FileName
 SORT "Event Count" DESC
 LIMIT 20
@@ -315,7 +324,7 @@ LIMIT 20
 ### Daily Activity
 \`\`\`dataview
 TABLE date(OOEvent_Timestamp) as "Date", length(rows) as "Events"
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 GROUP BY date(OOEvent_Timestamp)
 SORT "Date" DESC
 LIMIT 30
@@ -342,10 +351,10 @@ LIMIT 30
     }
   }
 
-  // Create the main summary file in _debug directory
+  // Create the main summary file in the events folder
   async createMainSummaryNote(): Promise<void> {
     try {
-      const summaryPath = '_debug/EventsSummary.md';
+      const summaryPath = `${this.config.eventsFolder}/EventsSummary.md`;
       
       const summaryContent = `---
 aliases: [ObsidianObserver Main Summary, Events Summary]
@@ -369,7 +378,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 20
 \`\`\`
@@ -377,7 +386,7 @@ LIMIT 20
 ### Event Type Distribution
 \`\`\`dataview
 TABLE length(rows) as "Count"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 GROUP BY OOEvent_Type
 SORT Count DESC
 \`\`\`
@@ -390,7 +399,7 @@ TABLE WITHOUT ID
   length(filter(rows, r => r.OOEvent_Type = "open")) as "Opens",
   length(filter(rows, r => r.OOEvent_Type = "save")) as "Saves",
   length(filter(rows, r => r.OOEvent_Type = "close")) as "Closes"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 GROUP BY OOEvent_FileName
 SORT "Total Events" DESC
 LIMIT 15
@@ -404,7 +413,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "open"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
@@ -416,7 +425,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "save"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
@@ -428,7 +437,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "close"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
@@ -442,7 +451,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "create"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
@@ -454,7 +463,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "delete"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
@@ -468,7 +477,7 @@ TABLE WITHOUT ID
   OOEvent_OldPath AS "Old Path",
   OOEvent_NewPath AS "New Path",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "rename"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
@@ -482,7 +491,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE contains(OOEvent_FilePath, "Projects")
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 15
@@ -494,7 +503,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE contains(OOEvent_FilePath, "People")
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 15
@@ -506,7 +515,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE contains(OOEvent_FileName, "Meeting")
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 15
@@ -520,7 +529,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE date(OOEvent_LocalTimestamp) = date(today)
 SORT OOEvent_LocalTimestamp DESC
 \`\`\`
@@ -531,7 +540,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE date(OOEvent_LocalTimestamp) >= date(today) - dur(7 days)
 SORT OOEvent_LocalTimestamp DESC
 \`\`\`
@@ -539,7 +548,7 @@ SORT OOEvent_LocalTimestamp DESC
 ### Daily Activity Summary (Last 30 Days)
 \`\`\`dataview
 TABLE date(OOEvent_LocalTimestamp) as "Date", length(rows) as "Events"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 GROUP BY date(OOEvent_LocalTimestamp)
 SORT "Date" DESC
 LIMIT 30
@@ -554,7 +563,7 @@ TABLE WITHOUT ID
   OOEvent_FileSize AS "Size",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_FileSize
 SORT OOEvent_FileSize DESC
 LIMIT 10
@@ -568,7 +577,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE contains(OOEvent_FileName, "YOUR_SEARCH_TERM")
 SORT OOEvent_LocalTimestamp DESC
 \`\`\`
@@ -580,7 +589,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_GUID = "YOUR_GUID_HERE"
 \`\`\`
 
@@ -594,6 +603,7 @@ WHERE OOEvent_GUID = "YOUR_GUID_HERE"
 - **rename**: File renamed or moved (includes old and new paths)
 - **ready**: Obsidian application fully loaded and ready
 - **quit**: Obsidian application closing
+- **PluginLoaded**: ObsidianObserver plugin loaded and initialized
 
 ## Metadata Fields
 
@@ -634,7 +644,7 @@ WHERE OOEvent_GUID = "YOUR_GUID_HERE"
   // Refresh the main summary file by deleting and recreating it
   async refreshMainSummaryNote(): Promise<void> {
     try {
-      const summaryPath = '_debug/EventsSummary.md';
+      const summaryPath = `${this.config.eventsFolder}/EventsSummary.md`;
       
       // Check if summary file exists and delete it
       const existingFile = this.app.vault.getAbstractFileByPath(summaryPath);

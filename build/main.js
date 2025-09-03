@@ -66,6 +66,7 @@ var init_utils = __esm({
 
 // src/main.ts
 __export(exports, {
+  DEFAULT_SETTINGS: () => DEFAULT_SETTINGS,
   default: () => ObsidianObserverPlugin
 });
 var import_obsidian2 = __toModule(require("obsidian"));
@@ -82,9 +83,16 @@ var EventLogger = class {
   getPluginVersion() {
     return this.pluginVersion;
   }
+  getConfig() {
+    return this.config;
+  }
+  updateConfig(newConfig) {
+    this.config = newConfig;
+    console.log("[ObsidianObserver] Logger configuration updated:", newConfig);
+  }
   async ensureEventsDirectoryExists() {
     try {
-      const eventsDir = this.config.eventsDirectory;
+      const eventsDir = `${this.config.eventsFolder}/events`;
       const dirExists = this.app.vault.getAbstractFileByPath(eventsDir);
       if (!dirExists) {
         try {
@@ -134,7 +142,7 @@ var EventLogger = class {
   async createEventNote(eventLog) {
     var _a, _b, _c, _d, _e;
     try {
-      const eventsDir = this.config.eventsDirectory;
+      const eventsDir = `${this.config.eventsFolder}/events`;
       const fileName = `${eventLog.guid}.md`;
       const filePath = `${eventsDir}/${fileName}`;
       const utcDate = new Date(eventLog.timestamp);
@@ -218,7 +226,7 @@ This event was logged at ${new Date(eventLog.timestamp).toLocaleString()}.`;
   }
   async createSummaryNote() {
     try {
-      const summaryPath = `${this.config.eventsDirectory}/_summary.md`;
+      const summaryPath = `${this.config.eventsFolder}/events/_summary.md`;
       const summaryContent = `---
 aliases: [ObsidianObserver Events Summary, Events Summary]
 tags: [obsidian-explorer, summary, events]
@@ -238,7 +246,7 @@ This file provides a summary of all ObsidianObserver events.
 ### Basic Event Queries
 \`\`\`dataview
 TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_VaultName, OOEvent_LocalTimestamp
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "open"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
@@ -246,7 +254,7 @@ LIMIT 10
 
 \`\`\`dataview
 TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_VaultName, OOEvent_LocalTimestamp
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "save"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 5
@@ -254,7 +262,7 @@ LIMIT 5
 
 \`\`\`dataview
 TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_VaultName, OOEvent_LocalTimestamp
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "close"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 5
@@ -263,7 +271,7 @@ LIMIT 5
 ### File Management Events
 \`\`\`dataview
 TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_VaultName, OOEvent_LocalTimestamp
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "create"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
@@ -271,7 +279,7 @@ LIMIT 10
 
 \`\`\`dataview
 TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_VaultName, OOEvent_LocalTimestamp
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "delete"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
@@ -279,7 +287,7 @@ LIMIT 10
 
 \`\`\`dataview
 TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_OldPath, OOEvent_NewPath, OOEvent_LocalTimestamp
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "rename"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
@@ -288,21 +296,21 @@ LIMIT 10
 ### Advanced Queries
 \`\`\`dataview
 TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_VaultName, OOEvent_Timestamp
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 WHERE contains(OOEvent_FilePath, "Projects")
 SORT OOEvent_Timestamp DESC
 \`\`\`
 
 \`\`\`dataview
 TABLE OOEvent_GUID, OOEvent_Type, OOEvent_FileName, OOEvent_VaultName, OOEvent_Timestamp
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_GUID = "ABC123DEF456GHI789JKL012"
 \`\`\`
 
 ### File Size Analysis
 \`\`\`dataview
 TABLE OOEvent_FileName, OOEvent_FileSize, OOEvent_Type, OOEvent_Timestamp
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_FileSize
 SORT OOEvent_FileSize DESC
 LIMIT 10
@@ -311,7 +319,7 @@ LIMIT 10
 ### Recent Activity
 \`\`\`dataview
 TABLE OOEvent_FileName, OOEvent_Type, OOEvent_Timestamp
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 SORT OOEvent_Timestamp DESC
 LIMIT 20
 \`\`\`
@@ -321,7 +329,7 @@ LIMIT 20
 ### Event Type Distribution
 \`\`\`dataview
 TABLE length(rows) as "Count"
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 GROUP BY OOEvent_Type
 SORT Count DESC
 \`\`\`
@@ -329,7 +337,7 @@ SORT Count DESC
 ### Vault Activity
 \`\`\`dataview
 TABLE length(rows) as "Count"
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 GROUP BY OOEvent_VaultName
 SORT Count DESC
 \`\`\`
@@ -337,7 +345,7 @@ SORT Count DESC
 ### File Activity
 \`\`\`dataview
 TABLE OOEvent_FileName, length(rows) as "Event Count"
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 GROUP BY OOEvent_FileName
 SORT "Event Count" DESC
 LIMIT 20
@@ -346,7 +354,7 @@ LIMIT 20
 ### Daily Activity
 \`\`\`dataview
 TABLE date(OOEvent_Timestamp) as "Date", length(rows) as "Events"
-FROM "${this.config.eventsDirectory}"
+FROM "${this.config.eventsFolder}/events"
 GROUP BY date(OOEvent_Timestamp)
 SORT "Date" DESC
 LIMIT 30
@@ -366,7 +374,7 @@ LIMIT 30
   }
   async createMainSummaryNote() {
     try {
-      const summaryPath = "_debug/EventsSummary.md";
+      const summaryPath = `${this.config.eventsFolder}/EventsSummary.md`;
       const summaryContent = `---
 aliases: [ObsidianObserver Main Summary, Events Summary]
 tags: [obsidian-explorer, summary, events, main]
@@ -389,7 +397,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 20
 \`\`\`
@@ -397,7 +405,7 @@ LIMIT 20
 ### Event Type Distribution
 \`\`\`dataview
 TABLE length(rows) as "Count"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 GROUP BY OOEvent_Type
 SORT Count DESC
 \`\`\`
@@ -410,7 +418,7 @@ TABLE WITHOUT ID
   length(filter(rows, r => r.OOEvent_Type = "open")) as "Opens",
   length(filter(rows, r => r.OOEvent_Type = "save")) as "Saves",
   length(filter(rows, r => r.OOEvent_Type = "close")) as "Closes"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 GROUP BY OOEvent_FileName
 SORT "Total Events" DESC
 LIMIT 15
@@ -424,7 +432,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "open"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
@@ -436,7 +444,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "save"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
@@ -448,7 +456,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "close"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
@@ -462,7 +470,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "create"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
@@ -474,7 +482,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "delete"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
@@ -488,7 +496,7 @@ TABLE WITHOUT ID
   OOEvent_OldPath AS "Old Path",
   OOEvent_NewPath AS "New Path",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "rename"
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 10
@@ -502,7 +510,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE contains(OOEvent_FilePath, "Projects")
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 15
@@ -514,7 +522,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE contains(OOEvent_FilePath, "People")
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 15
@@ -526,7 +534,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE contains(OOEvent_FileName, "Meeting")
 SORT OOEvent_LocalTimestamp DESC
 LIMIT 15
@@ -540,7 +548,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE date(OOEvent_LocalTimestamp) = date(today)
 SORT OOEvent_LocalTimestamp DESC
 \`\`\`
@@ -551,7 +559,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE date(OOEvent_LocalTimestamp) >= date(today) - dur(7 days)
 SORT OOEvent_LocalTimestamp DESC
 \`\`\`
@@ -559,7 +567,7 @@ SORT OOEvent_LocalTimestamp DESC
 ### Daily Activity Summary (Last 30 Days)
 \`\`\`dataview
 TABLE date(OOEvent_LocalTimestamp) as "Date", length(rows) as "Events"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 GROUP BY date(OOEvent_LocalTimestamp)
 SORT "Date" DESC
 LIMIT 30
@@ -574,7 +582,7 @@ TABLE WITHOUT ID
   OOEvent_FileSize AS "Size",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_FileSize
 SORT OOEvent_FileSize DESC
 LIMIT 10
@@ -588,7 +596,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE contains(OOEvent_FileName, "YOUR_SEARCH_TERM")
 SORT OOEvent_LocalTimestamp DESC
 \`\`\`
@@ -600,7 +608,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
-FROM "_debug/events"
+FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_GUID = "YOUR_GUID_HERE"
 \`\`\`
 
@@ -614,6 +622,7 @@ WHERE OOEvent_GUID = "YOUR_GUID_HERE"
 - **rename**: File renamed or moved (includes old and new paths)
 - **ready**: Obsidian application fully loaded and ready
 - **quit**: Obsidian application closing
+- **PluginLoaded**: ObsidianObserver plugin loaded and initialized
 
 ## Metadata Fields
 
@@ -644,7 +653,7 @@ WHERE OOEvent_GUID = "YOUR_GUID_HERE"
   }
   async refreshMainSummaryNote() {
     try {
-      const summaryPath = "_debug/EventsSummary.md";
+      const summaryPath = `${this.config.eventsFolder}/EventsSummary.md`;
       const existingFile = this.app.vault.getAbstractFileByPath(summaryPath);
       if (existingFile) {
         await this.app.vault.delete(existingFile);
@@ -665,13 +674,19 @@ init_utils();
 var EventHandlers = class {
   constructor(app, logger) {
     this.eventRefs = [];
-    this.excludedFiles = [];
     this.isProcessingEvent = false;
+    this.excludedFiles = [];
+    this.hasLoggedAppReady = false;
     this.app = app;
     this.logger = logger;
+    this.loggerConfig = logger.getConfig();
+  }
+  updateLoggerConfig(newConfig) {
+    this.loggerConfig = newConfig;
+    console.log("[ObsidianObserver] Event handlers configuration updated:", newConfig);
   }
   shouldExcludeFile(filePath) {
-    if (filePath.startsWith("_debug/")) {
+    if (filePath.startsWith(this.loggerConfig.eventsFolder)) {
       return true;
     }
     if (filePath.startsWith(".obsidian/")) {
@@ -711,11 +726,11 @@ var EventHandlers = class {
         }
       });
       this.eventRefs.push(deleteRef);
-      const readyRef = this.app.workspace.on("layout-ready", () => {
+      const readyRef = this.app.workspace.on("resize", () => {
         this.handleAppReady();
       });
       this.eventRefs.push(readyRef);
-      console.log("[ObsidianObserver] Event handlers registered successfully (open, save, rename, delete, ready)");
+      console.log("[ObsidianObserver] Event handlers registered successfully (open, save, rename, delete, layout-ready)");
     } catch (error) {
       console.error("[ObsidianObserver] Error registering event handlers:", error);
     }
@@ -735,11 +750,9 @@ var EventHandlers = class {
   async handleFileOpen(file) {
     try {
       if (this.isProcessingEvent) {
-        console.log(`[ObsidianObserver] Skipping recursive event processing for: ${file.path}`);
         return;
       }
       if (this.shouldExcludeFile(file.path)) {
-        console.log(`[ObsidianObserver] Skipping excluded file: ${file.path}`);
         return;
       }
       this.isProcessingEvent = true;
@@ -774,11 +787,9 @@ var EventHandlers = class {
   async handleFileSave(file) {
     try {
       if (this.isProcessingEvent) {
-        console.log(`[ObsidianObserver] Skipping recursive event processing for: ${file.path}`);
         return;
       }
       if (this.shouldExcludeFile(file.path)) {
-        console.log(`[ObsidianObserver] Skipping excluded file: ${file.path}`);
         return;
       }
       this.isProcessingEvent = true;
@@ -813,11 +824,9 @@ var EventHandlers = class {
   async handleFileRename(file, oldPath) {
     try {
       if (this.isProcessingEvent) {
-        console.log(`[ObsidianObserver] Skipping recursive event processing for: ${file.path}`);
         return;
       }
       if (this.shouldExcludeFile(file.path) || this.shouldExcludeFile(oldPath)) {
-        console.log(`[ObsidianObserver] Skipping excluded file: ${file.path} (renamed from ${oldPath})`);
         return;
       }
       this.isProcessingEvent = true;
@@ -854,11 +863,9 @@ var EventHandlers = class {
   async handleFileDelete(file) {
     try {
       if (this.isProcessingEvent) {
-        console.log(`[ObsidianObserver] Skipping recursive event processing for: ${file.path}`);
         return;
       }
       if (this.shouldExcludeFile(file.path)) {
-        console.log(`[ObsidianObserver] Skipping excluded file: ${file.path}`);
         return;
       }
       this.isProcessingEvent = true;
@@ -882,8 +889,10 @@ var EventHandlers = class {
   }
   async handleAppReady() {
     try {
+      if (this.hasLoggedAppReady) {
+        return;
+      }
       if (this.isProcessingEvent) {
-        console.log("[ObsidianObserver] Skipping recursive event processing for app ready");
         return;
       }
       this.isProcessingEvent = true;
@@ -899,6 +908,7 @@ var EventHandlers = class {
         }
       };
       await this.logger.logEvent(eventLog);
+      this.hasLoggedAppReady = true;
     } catch (error) {
       console.error("[ObsidianObserver] Error handling app ready event:", error);
     } finally {
@@ -932,15 +942,22 @@ var EventHandlers = class {
 };
 
 // src/main.ts
+var DEFAULT_SETTINGS = {
+  eventsFolder: "ObsidianObserver",
+  enableConsoleLog: true
+};
 var ObsidianObserverPlugin = class extends import_obsidian2.Plugin {
+  constructor(app, manifest) {
+    super(app, manifest);
+    this.settings = { ...DEFAULT_SETTINGS };
+  }
   async onload() {
     console.log("[ObsidianObserver] Loading plugin...");
     try {
+      await this.loadSettings();
       const loggerConfig = {
-        eventsDirectory: "_debug/events",
-        maxLogSize: 1024 * 1024,
-        enableConsoleLog: true,
-        includeMetadata: true
+        eventsFolder: this.settings.eventsFolder,
+        enableConsoleLog: this.settings.enableConsoleLog
       };
       this.logger = new EventLogger(this.app, loggerConfig, this.manifest.version);
       await this.logger.ensureEventsDirectoryExists();
@@ -948,6 +965,8 @@ var ObsidianObserverPlugin = class extends import_obsidian2.Plugin {
       await this.logger.createMainSummaryNote();
       this.eventHandlers = new EventHandlers(this.app, this.logger);
       this.eventHandlers.registerEventHandlers();
+      this.registerQuitDetectionEvents();
+      this.addSettingTab(new ObsidianObserverSettingTab(this.app, this));
       this.addRibbonIcon("bug", "Test ObsidianObserver Logging", async () => {
         await this.eventHandlers.testLogging();
         new import_obsidian2.Notice("Test event note created!");
@@ -975,29 +994,103 @@ var ObsidianObserverPlugin = class extends import_obsidian2.Plugin {
       const statusBarItem = this.addStatusBarItem();
       const version = this.manifest.version;
       statusBarItem.setText(`ObsidianObserver v${version}`);
+      const { generateBase32Guid: generateBase32Guid2 } = await Promise.resolve().then(() => (init_utils(), utils_exports));
+      const pluginLoadedEvent = {
+        guid: generateBase32Guid2(),
+        timestamp: new Date().toISOString(),
+        eventType: "PluginLoaded",
+        filePath: "",
+        fileName: "",
+        vaultName: this.app.vault.getName(),
+        metadata: {
+          lastModified: new Date().toISOString(),
+          pluginVersion: this.manifest.version
+        }
+      };
+      await this.logger.logEvent(pluginLoadedEvent);
       console.log("[ObsidianObserver] Plugin loaded successfully");
     } catch (error) {
       console.error("[ObsidianObserver] Error loading plugin:", error);
     }
   }
+  async loadSettings() {
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+  }
+  async saveSettings() {
+    await this.saveData(this.settings);
+  }
+  async updateSettings(updates) {
+    Object.assign(this.settings, updates);
+    await this.saveSettings();
+    await this.updateLoggerConfiguration();
+  }
+  async updateLoggerConfiguration() {
+    if (!this.logger)
+      return;
+    const newLoggerConfig = {
+      eventsFolder: this.settings.eventsFolder,
+      enableConsoleLog: this.settings.enableConsoleLog
+    };
+    this.logger.updateConfig(newLoggerConfig);
+    if (this.eventHandlers) {
+      this.eventHandlers.updateLoggerConfig(newLoggerConfig);
+    }
+    await this.logger.ensureEventsDirectoryExists();
+    this.app.workspace.trigger("file-explorer:refresh");
+  }
+  registerQuitDetectionEvents() {
+    this.registerDomEvent(window, "beforeunload", async (event) => {
+      console.log("[ObsidianObserver] Application quitting detected via beforeunload...");
+      try {
+        if (this.logger) {
+          const { generateBase32Guid: generateBase32Guid2 } = await Promise.resolve().then(() => (init_utils(), utils_exports));
+          const eventLog = {
+            guid: generateBase32Guid2(),
+            timestamp: new Date().toISOString(),
+            eventType: "quit",
+            filePath: "",
+            fileName: "",
+            vaultName: this.app.vault.getName(),
+            metadata: {
+              lastModified: new Date().toISOString(),
+              quitMethod: "beforeunload"
+            }
+          };
+          await this.logger.logEvent(eventLog);
+          await this.logger.flushBuffer();
+        }
+      } catch (error) {
+        console.error("[ObsidianObserver] Error logging quit event:", error);
+      }
+    });
+    this.registerEvent(this.app.workspace.on("quit", async () => {
+      console.log("[ObsidianObserver] Workspace quit event detected...");
+      try {
+        if (this.logger) {
+          const { generateBase32Guid: generateBase32Guid2 } = await Promise.resolve().then(() => (init_utils(), utils_exports));
+          const eventLog = {
+            guid: generateBase32Guid2(),
+            timestamp: new Date().toISOString(),
+            eventType: "quit",
+            filePath: "",
+            fileName: "",
+            vaultName: this.app.vault.getName(),
+            metadata: {
+              lastModified: new Date().toISOString(),
+              quitMethod: "workspace-quit"
+            }
+          };
+          await this.logger.logEvent(eventLog);
+          await this.logger.flushBuffer();
+        }
+      } catch (error) {
+        console.error("[ObsidianObserver] Error logging workspace quit event:", error);
+      }
+    }));
+  }
   async onunload() {
     console.log("[ObsidianObserver] Unloading plugin...");
     try {
-      if (this.logger) {
-        const { generateBase32Guid: generateBase32Guid2 } = await Promise.resolve().then(() => (init_utils(), utils_exports));
-        const eventLog = {
-          guid: generateBase32Guid2(),
-          timestamp: new Date().toISOString(),
-          eventType: "quit",
-          filePath: "",
-          fileName: "",
-          vaultName: this.app.vault.getName(),
-          metadata: {
-            lastModified: new Date().toISOString()
-          }
-        };
-        await this.logger.logEvent(eventLog);
-      }
       if (this.eventHandlers) {
         this.eventHandlers.unregisterEventHandlers();
       }
@@ -1008,5 +1101,27 @@ var ObsidianObserverPlugin = class extends import_obsidian2.Plugin {
     } catch (error) {
       console.error("[ObsidianObserver] Error unloading plugin:", error);
     }
+  }
+};
+var ObsidianObserverSettingTab = class extends import_obsidian2.PluginSettingTab {
+  constructor(app, plugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+  display() {
+    const { containerEl } = this;
+    containerEl.empty();
+    containerEl.createEl("h2", { text: "ObsidianObserver Settings" });
+    new import_obsidian2.Setting(containerEl).setName("Events Folder").setDesc("The base folder where ObsidianObserver will create its structure. Events will be stored in EventsFolder/events and EventSummary.md will be created automatically.").addText((text) => text.setPlaceholder("ObsidianObserver").setValue(this.plugin.settings.eventsFolder).onChange(async (value) => {
+      await this.plugin.updateSettings({ eventsFolder: value });
+    }));
+    new import_obsidian2.Setting(containerEl).setName("Enable Console Logging").setDesc("Log events to the browser console for debugging.").addToggle((toggle) => toggle.setValue(this.plugin.settings.enableConsoleLog).onChange(async (value) => {
+      await this.plugin.updateSettings({ enableConsoleLog: value });
+    }));
+    new import_obsidian2.Setting(containerEl).setName("Reset to Defaults").setDesc("Reset all settings to their default values.").addButton((button) => button.setButtonText("Reset").setWarning().onClick(async () => {
+      this.plugin.settings = { ...DEFAULT_SETTINGS };
+      await this.plugin.saveSettings();
+      this.display();
+    }));
   }
 };

@@ -1,28 +1,36 @@
 import { App, TFile, TAbstractFile, EventRef } from 'obsidian';
-import { EventLog } from './types';
 import { EventLogger } from './logger';
+import { LoggerConfig, EventLog } from './types';
 import { generateBase32Guid } from './utils';
 
 export class EventHandlers {
   private app: App;
   private logger: EventLogger;
   private eventRefs: EventRef[] = [];
-  private excludedFiles: string[] = []; // All _debug files are now excluded by the shouldExcludeFile method
-  private isProcessingEvent: boolean = false; // Flag to prevent recursive event processing
+  private isProcessingEvent = false;
+  private excludedFiles: string[] = []; // All configured debug files are now excluded by the shouldExcludeFile method
+  private loggerConfig: LoggerConfig;
+  private hasLoggedAppReady = false; // Flag to prevent multiple ready events
 
   constructor(app: App, logger: EventLogger) {
     this.app = app;
     this.logger = logger;
+    this.loggerConfig = logger.getConfig(); // We'll need to add this method to EventLogger
+  }
+
+  updateLoggerConfig(newConfig: LoggerConfig) {
+    this.loggerConfig = newConfig;
+    console.log('[ObsidianObserver] Event handlers configuration updated:', newConfig);
   }
 
   /**
-   * Check if a file should be excluded from logging
+   * Determines if a file should be excluded from logging
    * @param filePath The path of the file to check
    * @returns true if the file should be excluded from logging
    */
   private shouldExcludeFile(filePath: string): boolean {
-    // Skip ALL changes to the _debug directory - this prevents indexing loops
-    if (filePath.startsWith('_debug/')) {
+    // Skip ALL changes to the configured events folder - this prevents indexing loops
+    if (filePath.startsWith(this.loggerConfig.eventsFolder)) {
       return true;
     }
     
@@ -79,13 +87,13 @@ export class EventHandlers {
       });
       this.eventRefs.push(deleteRef);
 
-      // Register app ready event
-      const readyRef = this.app.workspace.on('layout-ready', () => {
+      // Register app layout ready event
+      const readyRef = this.app.workspace.on('resize', () => {
         this.handleAppReady();
       });
       this.eventRefs.push(readyRef);
 
-      console.log('[ObsidianObserver] Event handlers registered successfully (open, save, rename, delete, ready)');
+      console.log('[ObsidianObserver] Event handlers registered successfully (open, save, rename, delete, layout-ready)');
     } catch (error) {
       console.error('[ObsidianObserver] Error registering event handlers:', error);
     }
@@ -112,13 +120,11 @@ export class EventHandlers {
     try {
       // Prevent recursive event processing
       if (this.isProcessingEvent) {
-        console.log(`[ObsidianObserver] Skipping recursive event processing for: ${file.path}`);
         return;
       }
       
       // Skip logging events for excluded files to prevent recursion
       if (this.shouldExcludeFile(file.path)) {
-        console.log(`[ObsidianObserver] Skipping excluded file: ${file.path}`);
         return;
       }
       
@@ -160,13 +166,11 @@ export class EventHandlers {
     try {
       // Prevent recursive event processing
       if (this.isProcessingEvent) {
-        console.log(`[ObsidianObserver] Skipping recursive event processing for: ${file.path}`);
         return;
       }
       
       // Skip logging events for excluded files to prevent recursion
       if (this.shouldExcludeFile(file.path)) {
-        console.log(`[ObsidianObserver] Skipping excluded file: ${file.path}`);
         return;
       }
       
@@ -208,13 +212,11 @@ export class EventHandlers {
     try {
       // Prevent recursive event processing
       if (this.isProcessingEvent) {
-        console.log(`[ObsidianObserver] Skipping recursive event processing for: ${file.path}`);
         return;
       }
       
       // Skip logging events for excluded files to prevent recursion
       if (this.shouldExcludeFile(file.path) || this.shouldExcludeFile(oldPath)) {
-        console.log(`[ObsidianObserver] Skipping excluded file: ${file.path} (renamed from ${oldPath})`);
         return;
       }
       
@@ -258,13 +260,11 @@ export class EventHandlers {
     try {
       // Prevent recursive event processing
       if (this.isProcessingEvent) {
-        console.log(`[ObsidianObserver] Skipping recursive event processing for: ${file.path}`);
         return;
       }
       
       // Skip logging events for excluded files to prevent recursion
       if (this.shouldExcludeFile(file.path)) {
-        console.log(`[ObsidianObserver] Skipping excluded file: ${file.path}`);
         return;
       }
       
@@ -292,9 +292,13 @@ export class EventHandlers {
 
   private async handleAppReady(): Promise<void> {
     try {
+      // Only log app ready once per session
+      if (this.hasLoggedAppReady) {
+        return;
+      }
+      
       // Prevent recursive event processing
       if (this.isProcessingEvent) {
-        console.log('[ObsidianObserver] Skipping recursive event processing for app ready');
         return;
       }
       
@@ -313,12 +317,17 @@ export class EventHandlers {
       };
 
       await this.logger.logEvent(eventLog);
+      
+      // Mark that we've logged the app ready event
+      this.hasLoggedAppReady = true;
     } catch (error) {
       console.error('[ObsidianObserver] Error handling app ready event:', error);
     } finally {
       this.isProcessingEvent = false;
     }
   }
+
+
 
   async testLogging(): Promise<void> {
     try {

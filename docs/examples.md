@@ -27,9 +27,7 @@ export default class MyPlugin extends Plugin {
     // Basic configuration
     const loggerConfig = {
       logFilePath: '_debug/events.md',
-      maxLogSize: 1024 * 1024,
-      enableConsoleLog: true,
-      includeMetadata: true
+      enableConsoleLog: true
     };
 
     this.logger = new EventLogger(this.app, loggerConfig);
@@ -48,9 +46,7 @@ export default class MyPlugin extends Plugin {
 ```typescript
 const loggerConfig = {
   logFilePath: 'logs/obsidian-events.md',  // Custom path
-  maxLogSize: 2 * 1024 * 1024,            // 2MB max size
-  enableConsoleLog: false,                 // Disable console output
-  includeMetadata: true
+  enableConsoleLog: false                  // Disable console output
 };
 ```
 
@@ -61,9 +57,7 @@ const loggerConfig = {
 ```typescript
 const minimalConfig = {
   logFilePath: '_debug/minimal-events.md',
-  maxLogSize: 512 * 1024,      // 512KB max size
-  enableConsoleLog: false,     // No console output
-  includeMetadata: false       // No metadata collection
+  enableConsoleLog: false      // No console output
 };
 ```
 
@@ -72,9 +66,7 @@ const minimalConfig = {
 ```typescript
 const verboseConfig = {
   logFilePath: '_debug/verbose-events.md',
-  maxLogSize: 5 * 1024 * 1024, // 5MB max size
-  enableConsoleLog: true,      // Console output enabled
-  includeMetadata: true        // Full metadata collection
+  enableConsoleLog: true       // Console output enabled
 };
 ```
 
@@ -341,9 +333,7 @@ describe('EventLogger', () => {
 
     const config = {
       logFilePath: '_debug/test-events.md',
-      maxLogSize: 1024,
-      enableConsoleLog: false,
-      includeMetadata: true
+      enableConsoleLog: false
     };
 
     logger = new EventLogger(mockApp, config);

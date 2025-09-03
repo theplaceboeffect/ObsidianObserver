@@ -125,4 +125,54 @@
   **COMPLETED**: 20241231-204500
 1. [I] Add a new command "ObsdianObserverRefreshSummary" that will write a new updated copy of the `EventSummary.md` file.
   **COMPLETED**: 20241231-205000
-1. [R] Update the `Daily Notes` template to use the syntax from the `Daily Notes Plugin`
+
+# v00.00.05
+
+1. [I] Create a configuration page that will:
+  - [I] set the folder where the events will end up.
+  - [I] set the path to where the EventSummary.md will be recreated.
+  - [I] Recreate EventSummary.md when either paths change.
+  **COMPLETED**: 20250101-174900
+
+1. [I] default the events folder to '/ObsidianObserver/events' and the event summary to be '/ObsidianObserver/EventSummary.md'
+  **COMPLETED**: 20250101-175600 
+
+1. [I] BUG: The settings aren't visible.
+  **COMPLETED**: 20250101-180400
+
+1. [I] Remove the setting "Max Log Size" (maxLogSize)
+  **COMPLETED**: 20250101-183000
+1. [I] Remove the setting "Include File Metadata" (includeMetadata)
+  **COMPLETED**: 20250101-183000
+
+
+1. [I] Bug - exclude logging capture of access to the events folder.
+  **COMPLETED**: 20250101-191000
+1. [I] Remove the setting for the `EventSummary.md` file - this should always be stored in the `Events Folder`.
+  **COMPLETED**: 20250101-191000
+1. [I] Always create the `Events Folder` under the Events Folder.
+  **COMPLETED**: 20250101-191000
+1. [I] When the `Events Folder` is changed, refresh the display to ensure it is visible.
+  **COMPLETED**: 20250101-191000
+
+
+1. [I] Rework the settings:
+  - [I] Only have one setting for the `EventsFolder` itself
+    - [I] All events will always be created in `EventsFolder/events`.
+    - [I] The summary file will always be created in `EventsFolder/EventsSummary.md`.
+  - [I] Remove the setting for the EventSummary folder.
+  - [I] Set the default to `ObsidianObserver`.
+  - [I] Remove unused setting parameters and fields.
+  **COMPLETED**: 20250101-200900
+
+1. [I] Replace the problematic `ready` event with a proper app launch detection:
+  - [I] Remove the old `ready` event that was creating multiple events
+  - [I] Implement proper `layout-ready` event detection for app launch
+  - [I] Use the existing `ready` event type but with better event handling
+  **COMPLETED**: 20250101-200900
+
+1. [I] Add a 'PluginLoaded' event when first loaded when the app launches.
+  **COMPLETED**: 20250101-203000
+
+1. [I] Record application QUIT
+  **COMPLETED**: 20250101-203500

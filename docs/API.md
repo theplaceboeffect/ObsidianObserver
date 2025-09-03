@@ -36,9 +36,7 @@ Configuration for the EventLogger.
 ```typescript
 interface LoggerConfig {
   logFilePath: string;        // Path to log file (default: '_debug/events.md')
-  maxLogSize: number;         // Maximum log file size in bytes (default: 1MB)
   enableConsoleLog: boolean;  // Enable console output (default: true)
-  includeMetadata: boolean;   // Include file metadata (default: true)
 }
 ```
 
@@ -277,9 +275,7 @@ Called when the plugin is unloaded. Cleans up resources.
 ```typescript
 const loggerConfig: LoggerConfig = {
   logFilePath: '_debug/events.md',  // Custom log file path
-  maxLogSize: 1024 * 1024,         // 1MB max log size
-  enableConsoleLog: true,          // Enable console output
-  includeMetadata: true            // Include file metadata
+  enableConsoleLog: true            // Enable console output
 };
 ```
 
