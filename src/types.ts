@@ -5,6 +5,7 @@ export interface EventLog {
   filePath: string;
   fileName: string;
   vaultName: string;
+  hostname: string; // Hostname of the machine where the event occurred
   metadata?: {
     lastModified?: string;
     fileSize?: number;
@@ -24,6 +25,7 @@ export interface EventFrontmatter {
   OOEvent_FilePath: string;
   OOEvent_FileName: string;
   OOEvent_VaultName: string;
+  OOEvent_Hostname: string; // Hostname of the machine where the event occurred
   OOEvent_LastModified?: string;
   OOEvent_Created: string;
   OOEvent_OldPath?: string;

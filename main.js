@@ -83,6 +83,70 @@ var EventLogger = class {
   getPluginVersion() {
     return this.pluginVersion;
   }
+  getHostname() {
+    try {
+      if (typeof require !== "undefined") {
+        try {
+          const os = require("os");
+          if (os && typeof os.hostname === "function") {
+            const hostname = os.hostname();
+            console.log("[ObsidianObserver] os.hostname() result:", hostname);
+            if (hostname && hostname.trim() && hostname !== "localhost" && hostname !== "127.0.0.1" && hostname !== "::1") {
+              return hostname;
+            }
+          }
+        } catch (osError) {
+          console.log("[ObsidianObserver] os module not available or error:", osError);
+        }
+      }
+      if (typeof process !== "undefined" && process.env) {
+        if (process.env.HOSTNAME && process.env.HOSTNAME !== "localhost") {
+          return process.env.HOSTNAME;
+        }
+        if (process.env.COMPUTERNAME && process.env.COMPUTERNAME !== "localhost") {
+          return process.env.COMPUTERNAME;
+        }
+        if (process.env.USERDOMAIN && process.env.USERDOMAIN !== "localhost") {
+          return process.env.USERDOMAIN;
+        }
+        if (process.env.USER && process.env.USER !== "localhost") {
+          return process.env.USER;
+        }
+      }
+      let machineId = "obsidian";
+      if (this.app && this.app.vault) {
+        try {
+          const vaultName = this.app.vault.getName();
+          if (vaultName && vaultName.trim() && vaultName !== "vault") {
+            const cleanName = vaultName.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+            if (cleanName.length > 0) {
+              machineId = cleanName;
+            }
+          }
+        } catch (vaultError) {
+          console.log("[ObsidianObserver] Could not get vault name:", vaultError);
+        }
+      }
+      let identifier = machineId;
+      if (typeof navigator !== "undefined" && navigator.platform) {
+        if (navigator.platform.includes("Mac")) {
+          identifier += "-mac";
+        } else if (navigator.platform.includes("Win")) {
+          identifier += "-win";
+        } else if (navigator.platform.includes("Linux")) {
+          identifier += "-linux";
+        }
+      }
+      const sessionId = Math.random().toString(36).substring(2, 6);
+      const finalId = `${identifier}-${sessionId}`;
+      console.log("[ObsidianObserver] Generated machine identifier:", finalId);
+      return finalId;
+    } catch (error) {
+      console.warn("[ObsidianObserver] Could not determine hostname:", error);
+      const fallbackId = Math.random().toString(36).substring(2, 8);
+      return `fallback-${fallbackId}`;
+    }
+  }
   getConfig() {
     return this.config;
   }
@@ -157,6 +221,7 @@ var EventLogger = class {
         OOEvent_FilePath: eventLog.filePath,
         OOEvent_FileName: eventLog.fileName,
         OOEvent_VaultName: eventLog.vaultName,
+        OOEvent_Hostname: eventLog.hostname,
         OOEvent_LastModified: ((_a = eventLog.metadata) == null ? void 0 : _a.lastModified) || "",
         OOEvent_Created: new Date().toISOString(),
         OOEvent_OldPath: (_b = eventLog.metadata) == null ? void 0 : _b.oldPath,
@@ -191,6 +256,7 @@ OOEvent_Type: ${frontmatter.OOEvent_Type}
 OOEvent_FilePath: ${frontmatter.OOEvent_FilePath}
 OOEvent_FileName: ${frontmatter.OOEvent_FileName}
 OOEvent_VaultName: ${frontmatter.OOEvent_VaultName}
+OOEvent_Hostname: ${frontmatter.OOEvent_Hostname}
 OOEvent_LastModified: ${frontmatter.OOEvent_LastModified}
 OOEvent_Created: ${frontmatter.OOEvent_Created}
 OOEvent_PluginVersion: ${frontmatter.OOEvent_PluginVersion}`;
@@ -396,6 +462,7 @@ This file provides comprehensive DataView reports for common use-cases with Obsi
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 SORT OOEvent_LocalTimestamp DESC
@@ -414,6 +481,7 @@ SORT Count DESC
 \`\`\`dataview
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  OOEvent_Hostname AS "Host",
   length(rows) as "Total Events", 
   length(filter(rows, r => r.OOEvent_Type = "open")) as "Opens",
   length(filter(rows, r => r.OOEvent_Type = "save")) as "Saves",
@@ -431,6 +499,7 @@ LIMIT 15
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "open"
@@ -443,6 +512,7 @@ LIMIT 10
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "save"
@@ -455,6 +525,7 @@ LIMIT 10
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "close"
@@ -469,6 +540,7 @@ LIMIT 10
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "create"
@@ -481,6 +553,7 @@ LIMIT 10
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "delete"
@@ -493,6 +566,7 @@ LIMIT 10
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   OOEvent_OldPath AS "Old Path",
   OOEvent_NewPath AS "New Path",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
@@ -509,6 +583,7 @@ LIMIT 10
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE contains(OOEvent_FilePath, "Projects")
@@ -521,6 +596,7 @@ LIMIT 15
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE contains(OOEvent_FilePath, "People")
@@ -533,6 +609,7 @@ LIMIT 15
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE contains(OOEvent_FileName, "Meeting")
@@ -547,6 +624,7 @@ LIMIT 15
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE date(OOEvent_LocalTimestamp) = date(today)
@@ -558,6 +636,7 @@ SORT OOEvent_LocalTimestamp DESC
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE date(OOEvent_LocalTimestamp) >= date(today) - dur(7 days)
@@ -581,6 +660,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   OOEvent_FileSize AS "Size",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_FileSize
@@ -595,6 +675,7 @@ LIMIT 10
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE contains(OOEvent_FileName, "YOUR_SEARCH_TERM")
@@ -607,6 +688,7 @@ TABLE WITHOUT ID
   OOEvent_GUID AS "GUID",
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_GUID = "YOUR_GUID_HERE"
@@ -633,6 +715,7 @@ WHERE OOEvent_GUID = "YOUR_GUID_HERE"
 - **OOEvent_FilePath**: Full path to the file
 - **OOEvent_FileName**: Name of the file
 - **OOEvent_VaultName**: Name of the vault
+- **OOEvent_Hostname**: Hostname of the machine where the event occurred
 - **OOEvent_LastModified**: Last modification time of the file
 - **OOEvent_Created**: When the event note was created
 - **OOEvent_FileSize**: Size of the file in bytes
@@ -684,6 +767,70 @@ var EventHandlers = class {
   updateLoggerConfig(newConfig) {
     this.loggerConfig = newConfig;
     console.log("[ObsidianObserver] Event handlers configuration updated:", newConfig);
+  }
+  getHostname() {
+    try {
+      if (typeof require !== "undefined") {
+        try {
+          const os = require("os");
+          if (os && typeof os.hostname === "function") {
+            const hostname = os.hostname();
+            console.log("[ObsidianObserver] os.hostname() result:", hostname);
+            if (hostname && hostname.trim() && hostname !== "localhost" && hostname !== "127.0.0.1" && hostname !== "::1") {
+              return hostname;
+            }
+          }
+        } catch (osError) {
+          console.log("[ObsidianObserver] os module not available or error:", osError);
+        }
+      }
+      if (typeof process !== "undefined" && process.env) {
+        if (process.env.HOSTNAME && process.env.HOSTNAME !== "localhost") {
+          return process.env.HOSTNAME;
+        }
+        if (process.env.COMPUTERNAME && process.env.COMPUTERNAME !== "localhost") {
+          return process.env.COMPUTERNAME;
+        }
+        if (process.env.USERDOMAIN && process.env.USERDOMAIN !== "localhost") {
+          return process.env.USERDOMAIN;
+        }
+        if (process.env.USER && process.env.USER !== "localhost") {
+          return process.env.USER;
+        }
+      }
+      let machineId = "obsidian";
+      if (this.app && this.app.vault) {
+        try {
+          const vaultName = this.app.vault.getName();
+          if (vaultName && vaultName.trim() && vaultName !== "vault") {
+            const cleanName = vaultName.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+            if (cleanName.length > 0) {
+              machineId = cleanName;
+            }
+          }
+        } catch (vaultError) {
+          console.log("[ObsidianObserver] Could not get vault name:", vaultError);
+        }
+      }
+      let identifier = machineId;
+      if (typeof navigator !== "undefined" && navigator.platform) {
+        if (navigator.platform.includes("Mac")) {
+          identifier += "-mac";
+        } else if (navigator.platform.includes("Win")) {
+          identifier += "-win";
+        } else if (navigator.platform.includes("Linux")) {
+          identifier += "-linux";
+        }
+      }
+      const sessionId = Math.random().toString(36).substring(2, 6);
+      const finalId = `${identifier}-${sessionId}`;
+      console.log("[ObsidianObserver] Generated machine identifier:", finalId);
+      return finalId;
+    } catch (error) {
+      console.warn("[ObsidianObserver] Could not determine hostname:", error);
+      const fallbackId = Math.random().toString(36).substring(2, 8);
+      return `fallback-${fallbackId}`;
+    }
   }
   shouldExcludeFile(filePath) {
     if (filePath.startsWith(this.loggerConfig.eventsFolder)) {
@@ -775,6 +922,7 @@ var EventHandlers = class {
         filePath: file.path,
         fileName: file.name,
         vaultName: this.app.vault.getName(),
+        hostname: this.getHostname(),
         metadata
       };
       await this.logger.logEvent(eventLog);
@@ -812,6 +960,7 @@ var EventHandlers = class {
         filePath: file.path,
         fileName: file.name,
         vaultName: this.app.vault.getName(),
+        hostname: this.getHostname(),
         metadata
       };
       await this.logger.logEvent(eventLog);
@@ -851,6 +1000,7 @@ var EventHandlers = class {
         filePath: file.path,
         fileName: file.name,
         vaultName: this.app.vault.getName(),
+        hostname: this.getHostname(),
         metadata
       };
       await this.logger.logEvent(eventLog);
@@ -876,6 +1026,7 @@ var EventHandlers = class {
         filePath: file.path,
         fileName: file.name,
         vaultName: this.app.vault.getName(),
+        hostname: this.getHostname(),
         metadata: {
           lastModified: new Date().toISOString()
         }
@@ -903,6 +1054,7 @@ var EventHandlers = class {
         filePath: "",
         fileName: "",
         vaultName: this.app.vault.getName(),
+        hostname: this.getHostname(),
         metadata: {
           lastModified: new Date().toISOString()
         }
@@ -928,6 +1080,7 @@ var EventHandlers = class {
           filePath: "test-file.md",
           fileName: "test-file.md",
           vaultName: this.app.vault.getName(),
+          hostname: this.getHostname(),
           metadata: {
             lastModified: new Date().toISOString(),
             fileSize: 1024
@@ -969,6 +1122,7 @@ var ObsidianObserverPlugin = class extends import_obsidian2.Plugin {
       this.addSettingTab(new ObsidianObserverSettingTab(this.app, this));
       this.addRibbonIcon("bug", "Test ObsidianObserver Logging", async () => {
         await this.eventHandlers.testLogging();
+        this.app.workspace.trigger("file-explorer:refresh");
         new import_obsidian2.Notice("Test event note created!");
       });
       this.addCommand({
@@ -976,6 +1130,7 @@ var ObsidianObserverPlugin = class extends import_obsidian2.Plugin {
         name: "Flush ObsidianObserver Buffer",
         callback: async () => {
           await this.logger.flushBuffer();
+          this.app.workspace.trigger("file-explorer:refresh");
           new import_obsidian2.Notice("Buffer flushed to event notes!");
         }
       });
@@ -984,16 +1139,24 @@ var ObsidianObserverPlugin = class extends import_obsidian2.Plugin {
         name: "ObsidianObserver: Refresh Summary",
         callback: async () => {
           await this.logger.refreshMainSummaryNote();
+          this.app.workspace.trigger("file-explorer:refresh");
           new import_obsidian2.Notice("Events summary refreshed!");
+        }
+      });
+      this.addCommand({
+        id: "obsidian-observer-debug-hostname",
+        name: "ObsidianObserver: Debug Hostname",
+        callback: () => {
+          const hostname = this.getHostname();
+          console.log("[ObsidianObserver] Debug - Final hostname result:", hostname);
+          new import_obsidian2.Notice(`Hostname: ${hostname}`);
         }
       });
       this.addRibbonIcon("file-text", "Create Events Summary", async () => {
         await this.logger.createSummaryNote();
+        this.app.workspace.trigger("file-explorer:refresh");
         new import_obsidian2.Notice("Events summary created!");
       });
-      const statusBarItem = this.addStatusBarItem();
-      const version = this.manifest.version;
-      statusBarItem.setText(`ObsidianObserver v${version}`);
       const { generateBase32Guid: generateBase32Guid2 } = await Promise.resolve().then(() => (init_utils(), utils_exports));
       const pluginLoadedEvent = {
         guid: generateBase32Guid2(),
@@ -1002,6 +1165,7 @@ var ObsidianObserverPlugin = class extends import_obsidian2.Plugin {
         filePath: "",
         fileName: "",
         vaultName: this.app.vault.getName(),
+        hostname: this.getHostname(),
         metadata: {
           lastModified: new Date().toISOString(),
           pluginVersion: this.manifest.version
@@ -1038,6 +1202,70 @@ var ObsidianObserverPlugin = class extends import_obsidian2.Plugin {
     await this.logger.ensureEventsDirectoryExists();
     this.app.workspace.trigger("file-explorer:refresh");
   }
+  getHostname() {
+    try {
+      if (typeof require !== "undefined") {
+        try {
+          const os = require("os");
+          if (os && typeof os.hostname === "function") {
+            const hostname = os.hostname();
+            console.log("[ObsidianObserver] os.hostname() result:", hostname);
+            if (hostname && hostname.trim() && hostname !== "localhost" && hostname !== "127.0.0.1" && hostname !== "::1") {
+              return hostname;
+            }
+          }
+        } catch (osError) {
+          console.log("[ObsidianObserver] os module not available or error:", osError);
+        }
+      }
+      if (typeof process !== "undefined" && process.env) {
+        if (process.env.HOSTNAME && process.env.HOSTNAME !== "localhost") {
+          return process.env.HOSTNAME;
+        }
+        if (process.env.COMPUTERNAME && process.env.COMPUTERNAME !== "localhost") {
+          return process.env.COMPUTERNAME;
+        }
+        if (process.env.USERDOMAIN && process.env.USERDOMAIN !== "localhost") {
+          return process.env.USERDOMAIN;
+        }
+        if (process.env.USER && process.env.USER !== "localhost") {
+          return process.env.USER;
+        }
+      }
+      let machineId = "obsidian";
+      if (this.app && this.app.vault) {
+        try {
+          const vaultName = this.app.vault.getName();
+          if (vaultName && vaultName.trim() && vaultName !== "vault") {
+            const cleanName = vaultName.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+            if (cleanName.length > 0) {
+              machineId = cleanName;
+            }
+          }
+        } catch (vaultError) {
+          console.log("[ObsidianObserver] Could not get vault name:", vaultError);
+        }
+      }
+      let identifier = machineId;
+      if (typeof navigator !== "undefined" && navigator.platform) {
+        if (navigator.platform.includes("Mac")) {
+          identifier += "-mac";
+        } else if (navigator.platform.includes("Win")) {
+          identifier += "-win";
+        } else if (navigator.platform.includes("Linux")) {
+          identifier += "-linux";
+        }
+      }
+      const sessionId = Math.random().toString(36).substring(2, 6);
+      const finalId = `${identifier}-${sessionId}`;
+      console.log("[ObsidianObserver] Generated machine identifier:", finalId);
+      return finalId;
+    } catch (error) {
+      console.warn("[ObsidianObserver] Could not determine hostname:", error);
+      const fallbackId = Math.random().toString(36).substring(2, 8);
+      return `fallback-${fallbackId}`;
+    }
+  }
   registerQuitDetectionEvents() {
     this.registerDomEvent(window, "beforeunload", async (event) => {
       console.log("[ObsidianObserver] Application quitting detected via beforeunload...");
@@ -1051,6 +1279,7 @@ var ObsidianObserverPlugin = class extends import_obsidian2.Plugin {
             filePath: "",
             fileName: "",
             vaultName: this.app.vault.getName(),
+            hostname: this.getHostname(),
             metadata: {
               lastModified: new Date().toISOString(),
               quitMethod: "beforeunload"
@@ -1075,6 +1304,7 @@ var ObsidianObserverPlugin = class extends import_obsidian2.Plugin {
             filePath: "",
             fileName: "",
             vaultName: this.app.vault.getName(),
+            hostname: this.getHostname(),
             metadata: {
               lastModified: new Date().toISOString(),
               quitMethod: "workspace-quit"
@@ -1112,6 +1342,7 @@ var ObsidianObserverSettingTab = class extends import_obsidian2.PluginSettingTab
     const { containerEl } = this;
     containerEl.empty();
     containerEl.createEl("h2", { text: "ObsidianObserver Settings" });
+    new import_obsidian2.Setting(containerEl).setName("Plugin Version").setDesc(`Current version: ${this.plugin.manifest.version}`).addText((text) => text.setValue(this.plugin.manifest.version).setDisabled(true));
     new import_obsidian2.Setting(containerEl).setName("Events Folder").setDesc("The base folder where ObsidianObserver will create its structure. Events will be stored in EventsFolder/events and EventSummary.md will be created automatically.").addText((text) => text.setPlaceholder("ObsidianObserver").setValue(this.plugin.settings.eventsFolder).onChange(async (value) => {
       await this.plugin.updateSettings({ eventsFolder: value });
     }));

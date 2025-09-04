@@ -58,6 +58,8 @@ export default class ObsidianObserverPlugin extends Plugin {
       // Add ribbon icon for manual testing
       this.addRibbonIcon('bug', 'Test ObsidianObserver Logging', async () => {
         await this.eventHandlers.testLogging();
+        // Refresh the file explorer to show any new files
+        this.app.workspace.trigger('file-explorer:refresh');
         new Notice('Test event note created!');
       });
 
@@ -67,6 +69,8 @@ export default class ObsidianObserverPlugin extends Plugin {
         name: 'Flush ObsidianObserver Buffer',
         callback: async () => {
           await this.logger.flushBuffer();
+          // Refresh the file explorer to show any new files
+          this.app.workspace.trigger('file-explorer:refresh');
           new Notice('Buffer flushed to event notes!');
         }
       });
@@ -77,20 +81,30 @@ export default class ObsidianObserverPlugin extends Plugin {
         name: 'ObsidianObserver: Refresh Summary',
         callback: async () => {
           await this.logger.refreshMainSummaryNote();
+          // Refresh the file explorer to show any updated files
+          this.app.workspace.trigger('file-explorer:refresh');
           new Notice('Events summary refreshed!');
+        }
+      });
+
+      // Add command palette command for debugging hostname
+      this.addCommand({
+        id: 'obsidian-observer-debug-hostname',
+        name: 'ObsidianObserver: Debug Hostname',
+        callback: () => {
+          const hostname = this.getHostname();
+          console.log('[ObsidianObserver] Debug - Final hostname result:', hostname);
+          new Notice(`Hostname: ${hostname}`);
         }
       });
 
       // Add ribbon icon for creating summary note
       this.addRibbonIcon('file-text', 'Create Events Summary', async () => {
         await this.logger.createSummaryNote();
+        // Refresh the file explorer to show any new files
+        this.app.workspace.trigger('file-explorer:refresh');
         new Notice('Events summary created!');
       });
-
-      // Add status bar item
-      const statusBarItem = this.addStatusBarItem();
-      const version = this.manifest.version;
-      statusBarItem.setText(`ObsidianObserver v${version}`);
 
       // Log PluginLoaded event after successful initialization
       const { generateBase32Guid } = await import('./utils');
@@ -101,6 +115,7 @@ export default class ObsidianObserverPlugin extends Plugin {
         filePath: '',
         fileName: '',
         vaultName: this.app.vault.getName(),
+        hostname: this.getHostname(),
         metadata: {
           lastModified: new Date().toISOString(),
           pluginVersion: this.manifest.version
@@ -155,6 +170,102 @@ export default class ObsidianObserverPlugin extends Plugin {
     
   }
 
+  private getHostname(): string {
+    // Create a meaningful machine identifier from available Obsidian context
+    try {
+      // Method 1: Try to use Node.js os module (most reliable - uses uv_os_gethostname)
+      if (typeof require !== 'undefined') {
+        try {
+          const os = require('os');
+          if (os && typeof os.hostname === 'function') {
+            const hostname = os.hostname();
+            console.log('[ObsidianObserver] os.hostname() result:', hostname);
+            
+            // Check if we got a meaningful hostname (not localhost or empty)
+            if (hostname && 
+                hostname.trim() && 
+                hostname !== 'localhost' && 
+                hostname !== '127.0.0.1' &&
+                hostname !== '::1') {
+              return hostname;
+            }
+          }
+        } catch (osError) {
+          console.log('[ObsidianObserver] os module not available or error:', osError);
+        }
+      }
+      
+      // Method 2: Try to get from environment variables (fallback)
+      if (typeof process !== 'undefined' && process.env) {
+        // macOS and Linux
+        if (process.env.HOSTNAME && process.env.HOSTNAME !== 'localhost') {
+          return process.env.HOSTNAME;
+        }
+        
+        // Windows
+        if (process.env.COMPUTERNAME && process.env.COMPUTERNAME !== 'localhost') {
+          return process.env.COMPUTERNAME;
+        }
+        
+        // Alternative Windows environment variable
+        if (process.env.USERDOMAIN && process.env.USERDOMAIN !== 'localhost') {
+          return process.env.USERDOMAIN;
+        }
+        
+        // Try USER environment variable
+        if (process.env.USER && process.env.USER !== 'localhost') {
+          return process.env.USER;
+        }
+      }
+      
+      // Method 3: Create a meaningful identifier from Obsidian context
+      let machineId = 'obsidian';
+      
+      // Try to get from vault name
+      if (this.app && this.app.vault) {
+        try {
+          const vaultName = this.app.vault.getName();
+          if (vaultName && vaultName.trim() && vaultName !== 'vault') {
+            // Clean the vault name and use it as machine identifier
+            const cleanName = vaultName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+            if (cleanName.length > 0) {
+              machineId = cleanName;
+            }
+          }
+        } catch (vaultError) {
+          console.log('[ObsidianObserver] Could not get vault name:', vaultError);
+        }
+      }
+      
+      // Method 4: Create a unique machine identifier based on available info
+      let identifier = machineId;
+      
+      // Add OS information from navigator
+      if (typeof navigator !== 'undefined' && navigator.platform) {
+        if (navigator.platform.includes('Mac')) {
+          identifier += '-mac';
+        } else if (navigator.platform.includes('Win')) {
+          identifier += '-win';
+        } else if (navigator.platform.includes('Linux')) {
+          identifier += '-linux';
+        }
+      }
+      
+      // Add a unique session identifier
+      const sessionId = Math.random().toString(36).substring(2, 6);
+      const finalId = `${identifier}-${sessionId}`;
+      
+      console.log('[ObsidianObserver] Generated machine identifier:', finalId);
+      return finalId;
+      
+    } catch (error) {
+      console.warn('[ObsidianObserver] Could not determine hostname:', error);
+      // Generate a unique fallback identifier
+      const fallbackId = Math.random().toString(36).substring(2, 8);
+      return `fallback-${fallbackId}`;
+    }
+  }
+
   private registerQuitDetectionEvents() {
     // Use Obsidian's proper event registration methods for reliable cleanup
     
@@ -173,6 +284,7 @@ export default class ObsidianObserverPlugin extends Plugin {
             filePath: '',
             fileName: '',
             vaultName: this.app.vault.getName(),
+            hostname: this.getHostname(),
             metadata: {
               lastModified: new Date().toISOString(),
               quitMethod: 'beforeunload'
@@ -203,6 +315,7 @@ export default class ObsidianObserverPlugin extends Plugin {
               filePath: '',
               fileName: '',
               vaultName: this.app.vault.getName(),
+              hostname: this.getHostname(),
               metadata: {
                 lastModified: new Date().toISOString(),
                 quitMethod: 'workspace-quit'
@@ -217,8 +330,6 @@ export default class ObsidianObserverPlugin extends Plugin {
         }
       })
     );
-
-
   }
 
   async onunload() {
@@ -255,6 +366,14 @@ class ObsidianObserverSettingTab extends PluginSettingTab {
     containerEl.empty();
 
     containerEl.createEl('h2', { text: 'ObsidianObserver Settings' });
+
+    // Plugin Version Display (Read-only)
+    new Setting(containerEl)
+      .setName('Plugin Version')
+      .setDesc(`Current version: ${this.plugin.manifest.version}`)
+      .addText(text => text
+        .setValue(this.plugin.manifest.version)
+        .setDisabled(true));
 
     // Events Folder Setting
     new Setting(containerEl)

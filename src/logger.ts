@@ -18,6 +18,102 @@ export class EventLogger {
     return this.pluginVersion;
   }
 
+  private getHostname(): string {
+    // Create a meaningful machine identifier from available Obsidian context
+    try {
+      // Method 1: Try to use Node.js os module (most reliable - uses uv_os_gethostname)
+      if (typeof require !== 'undefined') {
+        try {
+          const os = require('os');
+          if (os && typeof os.hostname === 'function') {
+            const hostname = os.hostname();
+            console.log('[ObsidianObserver] os.hostname() result:', hostname);
+            
+            // Check if we got a meaningful hostname (not localhost or empty)
+            if (hostname && 
+                hostname.trim() && 
+                hostname !== 'localhost' && 
+                hostname !== '127.0.0.1' &&
+                hostname !== '::1') {
+              return hostname;
+            }
+          }
+        } catch (osError) {
+          console.log('[ObsidianObserver] os module not available or error:', osError);
+        }
+      }
+      
+      // Method 2: Try to get from environment variables (fallback)
+      if (typeof process !== 'undefined' && process.env) {
+        // macOS and Linux
+        if (process.env.HOSTNAME && process.env.HOSTNAME !== 'localhost') {
+          return process.env.HOSTNAME;
+        }
+        
+        // Windows
+        if (process.env.COMPUTERNAME && process.env.COMPUTERNAME !== 'localhost') {
+          return process.env.COMPUTERNAME;
+        }
+        
+        // Alternative Windows environment variable
+        if (process.env.USERDOMAIN && process.env.USERDOMAIN !== 'localhost') {
+          return process.env.USERDOMAIN;
+        }
+        
+        // Try USER environment variable
+        if (process.env.USER && process.env.USER !== 'localhost') {
+          return process.env.USER;
+        }
+      }
+      
+      // Method 3: Create a meaningful identifier from Obsidian context
+      let machineId = 'obsidian';
+      
+      // Try to get from vault name
+      if (this.app && this.app.vault) {
+        try {
+          const vaultName = this.app.vault.getName();
+          if (vaultName && vaultName.trim() && vaultName !== 'vault') {
+            // Clean the vault name and use it as machine identifier
+            const cleanName = vaultName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+            if (cleanName.length > 0) {
+              machineId = cleanName;
+            }
+          }
+        } catch (vaultError) {
+          console.log('[ObsidianObserver] Could not get vault name:', vaultError);
+        }
+      }
+      
+      // Method 4: Create a unique machine identifier based on available info
+      let identifier = machineId;
+      
+      // Add OS information from navigator
+      if (typeof navigator !== 'undefined' && navigator.platform) {
+        if (navigator.platform.includes('Mac')) {
+          identifier += '-mac';
+        } else if (navigator.platform.includes('Win')) {
+          identifier += '-win';
+        } else if (navigator.platform.includes('Linux')) {
+          identifier += '-linux';
+        }
+      }
+      
+      // Add a unique session identifier
+      const sessionId = Math.random().toString(36).substring(2, 6);
+      const finalId = `${identifier}-${sessionId}`;
+      
+      console.log('[ObsidianObserver] Generated machine identifier:', finalId);
+      return finalId;
+      
+    } catch (error) {
+      console.warn('[ObsidianObserver] Could not determine hostname:', error);
+      // Generate a unique fallback identifier
+      const fallbackId = Math.random().toString(36).substring(2, 8);
+      return `fallback-${fallbackId}`;
+    }
+  }
+
   getConfig(): LoggerConfig {
     return this.config;
   }
@@ -113,6 +209,7 @@ export class EventLogger {
       OOEvent_FilePath: eventLog.filePath,
       OOEvent_FileName: eventLog.fileName,
       OOEvent_VaultName: eventLog.vaultName,
+      OOEvent_Hostname: eventLog.hostname,
       OOEvent_LastModified: eventLog.metadata?.lastModified || '',
       OOEvent_Created: new Date().toISOString(),
       OOEvent_OldPath: eventLog.metadata?.oldPath,
@@ -159,6 +256,7 @@ OOEvent_Type: ${frontmatter.OOEvent_Type}
 OOEvent_FilePath: ${frontmatter.OOEvent_FilePath}
 OOEvent_FileName: ${frontmatter.OOEvent_FileName}
 OOEvent_VaultName: ${frontmatter.OOEvent_VaultName}
+OOEvent_Hostname: ${frontmatter.OOEvent_Hostname}
 OOEvent_LastModified: ${frontmatter.OOEvent_LastModified}
 OOEvent_Created: ${frontmatter.OOEvent_Created}
 OOEvent_PluginVersion: ${frontmatter.OOEvent_PluginVersion}`;
@@ -377,6 +475,7 @@ This file provides comprehensive DataView reports for common use-cases with Obsi
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 SORT OOEvent_LocalTimestamp DESC
@@ -395,6 +494,7 @@ SORT Count DESC
 \`\`\`dataview
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
+  OOEvent_Hostname AS "Host",
   length(rows) as "Total Events", 
   length(filter(rows, r => r.OOEvent_Type = "open")) as "Opens",
   length(filter(rows, r => r.OOEvent_Type = "save")) as "Saves",
@@ -412,6 +512,7 @@ LIMIT 15
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "open"
@@ -424,6 +525,7 @@ LIMIT 10
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "save"
@@ -436,6 +538,7 @@ LIMIT 10
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "close"
@@ -450,6 +553,7 @@ LIMIT 10
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "create"
@@ -462,6 +566,7 @@ LIMIT 10
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_Type = "delete"
@@ -474,6 +579,7 @@ LIMIT 10
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   OOEvent_OldPath AS "Old Path",
   OOEvent_NewPath AS "New Path",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
@@ -490,6 +596,7 @@ LIMIT 10
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE contains(OOEvent_FilePath, "Projects")
@@ -502,6 +609,7 @@ LIMIT 15
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE contains(OOEvent_FilePath, "People")
@@ -514,6 +622,7 @@ LIMIT 15
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE contains(OOEvent_FileName, "Meeting")
@@ -528,6 +637,7 @@ LIMIT 15
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE date(OOEvent_LocalTimestamp) = date(today)
@@ -539,6 +649,7 @@ SORT OOEvent_LocalTimestamp DESC
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE date(OOEvent_LocalTimestamp) >= date(today) - dur(7 days)
@@ -562,6 +673,7 @@ TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   OOEvent_FileSize AS "Size",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_FileSize
@@ -576,6 +688,7 @@ LIMIT 10
 TABLE WITHOUT ID
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE contains(OOEvent_FileName, "YOUR_SEARCH_TERM")
@@ -588,6 +701,7 @@ TABLE WITHOUT ID
   OOEvent_GUID AS "GUID",
   regexreplace(OOEvent_FileName, ".md$", "") AS "File",
   upper(OOEvent_Type) AS "Type",
+  OOEvent_Hostname AS "Host",
   dateformat(OOEvent_LocalTimestamp, "yyyy-MM-dd HH:mm:ss") AS "When"
 FROM "${this.config.eventsFolder}/events"
 WHERE OOEvent_GUID = "YOUR_GUID_HERE"
@@ -614,6 +728,7 @@ WHERE OOEvent_GUID = "YOUR_GUID_HERE"
 - **OOEvent_FilePath**: Full path to the file
 - **OOEvent_FileName**: Name of the file
 - **OOEvent_VaultName**: Name of the vault
+- **OOEvent_Hostname**: Hostname of the machine where the event occurred
 - **OOEvent_LastModified**: Last modification time of the file
 - **OOEvent_Created**: When the event note was created
 - **OOEvent_FileSize**: Size of the file in bytes

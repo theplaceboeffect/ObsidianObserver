@@ -23,6 +23,102 @@ export class EventHandlers {
     console.log('[ObsidianObserver] Event handlers configuration updated:', newConfig);
   }
 
+  private getHostname(): string {
+    // Create a meaningful machine identifier from available Obsidian context
+    try {
+      // Method 1: Try to use Node.js os module (most reliable - uses uv_os_gethostname)
+      if (typeof require !== 'undefined') {
+        try {
+          const os = require('os');
+          if (os && typeof os.hostname === 'function') {
+            const hostname = os.hostname();
+            console.log('[ObsidianObserver] os.hostname() result:', hostname);
+            
+            // Check if we got a meaningful hostname (not localhost or empty)
+            if (hostname && 
+                hostname.trim() && 
+                hostname !== 'localhost' && 
+                hostname !== '127.0.0.1' &&
+                hostname !== '::1') {
+              return hostname;
+            }
+          }
+        } catch (osError) {
+          console.log('[ObsidianObserver] os module not available or error:', osError);
+        }
+      }
+      
+      // Method 2: Try to get from environment variables (fallback)
+      if (typeof process !== 'undefined' && process.env) {
+        // macOS and Linux
+        if (process.env.HOSTNAME && process.env.HOSTNAME !== 'localhost') {
+          return process.env.HOSTNAME;
+        }
+        
+        // Windows
+        if (process.env.COMPUTERNAME && process.env.COMPUTERNAME !== 'localhost') {
+          return process.env.COMPUTERNAME;
+        }
+        
+        // Alternative Windows environment variable
+        if (process.env.USERDOMAIN && process.env.USERDOMAIN !== 'localhost') {
+          return process.env.USERDOMAIN;
+        }
+        
+        // Try USER environment variable
+        if (process.env.USER && process.env.USER !== 'localhost') {
+          return process.env.USER;
+        }
+      }
+      
+      // Method 3: Create a meaningful identifier from Obsidian context
+      let machineId = 'obsidian';
+      
+      // Try to get from vault name
+      if (this.app && this.app.vault) {
+        try {
+          const vaultName = this.app.vault.getName();
+          if (vaultName && vaultName.trim() && vaultName !== 'vault') {
+            // Clean the vault name and use it as machine identifier
+            const cleanName = vaultName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+            if (cleanName.length > 0) {
+              machineId = cleanName;
+            }
+          }
+        } catch (vaultError) {
+          console.log('[ObsidianObserver] Could not get vault name:', vaultError);
+        }
+      }
+      
+      // Method 4: Create a unique machine identifier based on available info
+      let identifier = machineId;
+      
+      // Add OS information from navigator
+      if (typeof navigator !== 'undefined' && navigator.platform) {
+        if (navigator.platform.includes('Mac')) {
+          identifier += '-mac';
+        } else if (navigator.platform.includes('Win')) {
+          identifier += '-win';
+        } else if (navigator.platform.includes('Linux')) {
+          identifier += '-linux';
+        }
+      }
+      
+      // Add a unique session identifier
+      const sessionId = Math.random().toString(36).substring(2, 6);
+      const finalId = `${identifier}-${sessionId}`;
+      
+      console.log('[ObsidianObserver] Generated machine identifier:', finalId);
+      return finalId;
+      
+    } catch (error) {
+      console.warn('[ObsidianObserver] Could not determine hostname:', error);
+      // Generate a unique fallback identifier
+      const fallbackId = Math.random().toString(36).substring(2, 8);
+      return `fallback-${fallbackId}`;
+    }
+  }
+
   /**
    * Determines if a file should be excluded from logging
    * @param filePath The path of the file to check
@@ -151,6 +247,7 @@ export class EventHandlers {
         filePath: file.path,
         fileName: file.name,
         vaultName: this.app.vault.getName(),
+        hostname: this.getHostname(),
         metadata
       };
 
@@ -197,6 +294,7 @@ export class EventHandlers {
         filePath: file.path,
         fileName: file.name,
         vaultName: this.app.vault.getName(),
+        hostname: this.getHostname(),
         metadata
       };
 
@@ -245,6 +343,7 @@ export class EventHandlers {
         filePath: file.path,
         fileName: file.name,
         vaultName: this.app.vault.getName(),
+        hostname: this.getHostname(),
         metadata
       };
 
@@ -277,6 +376,7 @@ export class EventHandlers {
         filePath: file.path,
         fileName: file.name,
         vaultName: this.app.vault.getName(),
+        hostname: this.getHostname(),
         metadata: {
           lastModified: new Date().toISOString()
         }
@@ -311,6 +411,7 @@ export class EventHandlers {
         filePath: '',
         fileName: '',
         vaultName: this.app.vault.getName(),
+        hostname: this.getHostname(),
         metadata: {
           lastModified: new Date().toISOString()
         }
@@ -343,6 +444,7 @@ export class EventHandlers {
           filePath: 'test-file.md',
           fileName: 'test-file.md',
           vaultName: this.app.vault.getName(),
+          hostname: this.getHostname(),
           metadata: {
             lastModified: new Date().toISOString(),
             fileSize: 1024

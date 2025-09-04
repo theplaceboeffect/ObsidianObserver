@@ -176,3 +176,18 @@
 
 1. [I] Record application QUIT
   **COMPLETED**: 20250101-203500
+
+# v00.00.06
+1. [I] Add the hostname to the frontmatter of each event.
+    - Also update all the queries in EventSummary.md to include the hostname field.
+  **COMPLETED**: 20250101-204000
+1. [I] BUG: The hostname is just 'obsidian.md' - find another means to get the hostname.
+  **COMPLETED**: 20250101-213000
+
+1. [I] Add directory tree refresh to flush and refresh commands
+  **COMPLETED**: 20250101-213000
+
+1. [I] Hide the version from the statusbar.
+  **COMPLETED**: 20250101-214500
+1. [I] Show the version in the plugin configuration page.
+  **COMPLETED**: 20250101-214500
