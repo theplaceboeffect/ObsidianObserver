@@ -1,10 +1,11 @@
 export interface EventLog {
   guid: string; // Base32 GUID for unique identification
   timestamp: string;
-  eventType: 'open' | 'save' | 'quit' | 'ready' | 'rename' | 'delete';
+  eventType: 'open' | 'save' | 'quit' | 'ready' | 'rename' | 'delete' | 'PluginLoaded';
   filePath: string;
   fileName: string;
   vaultName: string;
+  hostname: string; // Hostname of the machine where the event occurred
   metadata?: {
     lastModified?: string;
     fileSize?: number;
@@ -20,10 +21,11 @@ export interface EventFrontmatter {
   OOEvent_Timestamp: string;
   OOEvent_LocalTimestamp?: string;
   OOEvent_Timezone?: string;
-  OOEvent_Type: 'open' | 'save' | 'quit' | 'ready' | 'rename' | 'delete';
+  OOEvent_Type: 'open' | 'save' | 'quit' | 'ready' | 'rename' | 'delete' | 'PluginLoaded';
   OOEvent_FilePath: string;
   OOEvent_FileName: string;
   OOEvent_VaultName: string;
+  OOEvent_Hostname: string; // Hostname of the machine where the event occurred
   OOEvent_LastModified?: string;
   OOEvent_Created: string;
   OOEvent_OldPath?: string;
@@ -34,10 +36,13 @@ export interface EventFrontmatter {
 }
 
 export interface LoggerConfig {
-  eventsDirectory: string; // Changed from logFilePath to eventsDirectory
-  maxLogSize: number;
+  eventsFolder: string; // The base folder where ObsidianObserver will create its structure
   enableConsoleLog: boolean;
-  includeMetadata: boolean;
+}
+
+export interface PluginSettings {
+  eventsFolder: string;
+  enableConsoleLog: boolean;
 }
 
 export interface ObsidianObserverSettings {

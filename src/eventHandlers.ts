@@ -1,28 +1,132 @@
 import { App, TFile, TAbstractFile, EventRef } from 'obsidian';
-import { EventLog } from './types';
 import { EventLogger } from './logger';
+import { LoggerConfig, EventLog } from './types';
 import { generateBase32Guid } from './utils';
 
 export class EventHandlers {
   private app: App;
   private logger: EventLogger;
   private eventRefs: EventRef[] = [];
-  private excludedFiles: string[] = []; // All _debug files are now excluded by the shouldExcludeFile method
-  private isProcessingEvent: boolean = false; // Flag to prevent recursive event processing
+  private isProcessingEvent = false;
+  private excludedFiles: string[] = []; // All configured debug files are now excluded by the shouldExcludeFile method
+  private loggerConfig: LoggerConfig;
+  private hasLoggedAppReady = false; // Flag to prevent multiple ready events
 
   constructor(app: App, logger: EventLogger) {
     this.app = app;
     this.logger = logger;
+    this.loggerConfig = logger.getConfig(); // We'll need to add this method to EventLogger
+  }
+
+  updateLoggerConfig(newConfig: LoggerConfig) {
+    this.loggerConfig = newConfig;
+    console.log('[ObsidianObserver] Event handlers configuration updated:', newConfig);
+  }
+
+  private getHostname(): string {
+    // Create a meaningful machine identifier from available Obsidian context
+    try {
+      // Method 1: Try to use Node.js os module (most reliable - uses uv_os_gethostname)
+      if (typeof require !== 'undefined') {
+        try {
+          const os = require('os');
+          if (os && typeof os.hostname === 'function') {
+            const hostname = os.hostname();
+            console.log('[ObsidianObserver] os.hostname() result:', hostname);
+            
+            // Check if we got a meaningful hostname (not localhost or empty)
+            if (hostname && 
+                hostname.trim() && 
+                hostname !== 'localhost' && 
+                hostname !== '127.0.0.1' &&
+                hostname !== '::1') {
+              return hostname;
+            }
+          }
+        } catch (osError) {
+          console.log('[ObsidianObserver] os module not available or error:', osError);
+        }
+      }
+      
+      // Method 2: Try to get from environment variables (fallback)
+      if (typeof process !== 'undefined' && process.env) {
+        // macOS and Linux
+        if (process.env.HOSTNAME && process.env.HOSTNAME !== 'localhost') {
+          return process.env.HOSTNAME;
+        }
+        
+        // Windows
+        if (process.env.COMPUTERNAME && process.env.COMPUTERNAME !== 'localhost') {
+          return process.env.COMPUTERNAME;
+        }
+        
+        // Alternative Windows environment variable
+        if (process.env.USERDOMAIN && process.env.USERDOMAIN !== 'localhost') {
+          return process.env.USERDOMAIN;
+        }
+        
+        // Try USER environment variable
+        if (process.env.USER && process.env.USER !== 'localhost') {
+          return process.env.USER;
+        }
+      }
+      
+      // Method 3: Create a meaningful identifier from Obsidian context
+      let machineId = 'obsidian';
+      
+      // Try to get from vault name
+      if (this.app && this.app.vault) {
+        try {
+          const vaultName = this.app.vault.getName();
+          if (vaultName && vaultName.trim() && vaultName !== 'vault') {
+            // Clean the vault name and use it as machine identifier
+            const cleanName = vaultName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+            if (cleanName.length > 0) {
+              machineId = cleanName;
+            }
+          }
+        } catch (vaultError) {
+          console.log('[ObsidianObserver] Could not get vault name:', vaultError);
+        }
+      }
+      
+      // Method 4: Create a unique machine identifier based on available info
+      let identifier = machineId;
+      
+      // Add OS information from navigator
+      if (typeof navigator !== 'undefined' && navigator.platform) {
+        if (navigator.platform.includes('Mac')) {
+          identifier += '-mac';
+        } else if (navigator.platform.includes('Win')) {
+          identifier += '-win';
+        } else if (navigator.platform.includes('Linux')) {
+          identifier += '-linux';
+        }
+      }
+      
+      // Add a unique session identifier
+      const sessionId = Math.random().toString(36).substring(2, 6);
+      const finalId = `${identifier}-${sessionId}`;
+      
+      console.log('[ObsidianObserver] Generated machine identifier:', finalId);
+      return finalId;
+      
+    } catch (error) {
+      console.warn('[ObsidianObserver] Could not determine hostname:', error);
+      // Generate a unique fallback identifier
+      const fallbackId = Math.random().toString(36).substring(2, 8);
+      return `fallback-${fallbackId}`;
+    }
   }
 
   /**
-   * Check if a file should be excluded from logging
+   * Determines if a file should be excluded from logging
    * @param filePath The path of the file to check
    * @returns true if the file should be excluded from logging
    */
   private shouldExcludeFile(filePath: string): boolean {
-    // Skip ALL changes to the _debug directory - this prevents indexing loops
-    if (filePath.startsWith('_debug/')) {
+    // Skip ALL changes to the configured events folder - this prevents indexing loops
+    if (filePath.startsWith(this.loggerConfig.eventsFolder)) {
       return true;
     }
     
@@ -79,13 +183,13 @@ export class EventHandlers {
       });
       this.eventRefs.push(deleteRef);
 
-      // Register app ready event
-      const readyRef = this.app.workspace.on('layout-ready', () => {
+      // Register app layout ready event
+      const readyRef = this.app.workspace.on('resize', () => {
         this.handleAppReady();
       });
       this.eventRefs.push(readyRef);
 
-      console.log('[ObsidianObserver] Event handlers registered successfully (open, save, rename, delete, ready)');
+      console.log('[ObsidianObserver] Event handlers registered successfully (open, save, rename, delete, layout-ready)');
     } catch (error) {
       console.error('[ObsidianObserver] Error registering event handlers:', error);
     }
@@ -112,13 +216,11 @@ export class EventHandlers {
     try {
       // Prevent recursive event processing
       if (this.isProcessingEvent) {
-        console.log(`[ObsidianObserver] Skipping recursive event processing for: ${file.path}`);
         return;
       }
       
       // Skip logging events for excluded files to prevent recursion
       if (this.shouldExcludeFile(file.path)) {
-        console.log(`[ObsidianObserver] Skipping excluded file: ${file.path}`);
         return;
       }
       
@@ -145,6 +247,7 @@ export class EventHandlers {
         filePath: file.path,
         fileName: file.name,
         vaultName: this.app.vault.getName(),
+        hostname: this.getHostname(),
         metadata
       };
 
@@ -160,13 +263,11 @@ export class EventHandlers {
     try {
       // Prevent recursive event processing
       if (this.isProcessingEvent) {
-        console.log(`[ObsidianObserver] Skipping recursive event processing for: ${file.path}`);
         return;
       }
       
       // Skip logging events for excluded files to prevent recursion
       if (this.shouldExcludeFile(file.path)) {
-        console.log(`[ObsidianObserver] Skipping excluded file: ${file.path}`);
         return;
       }
       
@@ -193,6 +294,7 @@ export class EventHandlers {
         filePath: file.path,
         fileName: file.name,
         vaultName: this.app.vault.getName(),
+        hostname: this.getHostname(),
         metadata
       };
 
@@ -208,13 +310,11 @@ export class EventHandlers {
     try {
       // Prevent recursive event processing
       if (this.isProcessingEvent) {
-        console.log(`[ObsidianObserver] Skipping recursive event processing for: ${file.path}`);
         return;
       }
       
       // Skip logging events for excluded files to prevent recursion
       if (this.shouldExcludeFile(file.path) || this.shouldExcludeFile(oldPath)) {
-        console.log(`[ObsidianObserver] Skipping excluded file: ${file.path} (renamed from ${oldPath})`);
         return;
       }
       
@@ -243,6 +343,7 @@ export class EventHandlers {
         filePath: file.path,
         fileName: file.name,
         vaultName: this.app.vault.getName(),
+        hostname: this.getHostname(),
         metadata
       };
 
@@ -258,13 +359,11 @@ export class EventHandlers {
     try {
       // Prevent recursive event processing
       if (this.isProcessingEvent) {
-        console.log(`[ObsidianObserver] Skipping recursive event processing for: ${file.path}`);
         return;
       }
       
       // Skip logging events for excluded files to prevent recursion
       if (this.shouldExcludeFile(file.path)) {
-        console.log(`[ObsidianObserver] Skipping excluded file: ${file.path}`);
         return;
       }
       
@@ -277,6 +376,7 @@ export class EventHandlers {
         filePath: file.path,
         fileName: file.name,
         vaultName: this.app.vault.getName(),
+        hostname: this.getHostname(),
         metadata: {
           lastModified: new Date().toISOString()
         }
@@ -292,9 +392,13 @@ export class EventHandlers {
 
   private async handleAppReady(): Promise<void> {
     try {
+      // Only log app ready once per session
+      if (this.hasLoggedAppReady) {
+        return;
+      }
+      
       // Prevent recursive event processing
       if (this.isProcessingEvent) {
-        console.log('[ObsidianObserver] Skipping recursive event processing for app ready');
         return;
       }
       
@@ -307,18 +411,24 @@ export class EventHandlers {
         filePath: '',
         fileName: '',
         vaultName: this.app.vault.getName(),
+        hostname: this.getHostname(),
         metadata: {
           lastModified: new Date().toISOString()
         }
       };
 
       await this.logger.logEvent(eventLog);
+      
+      // Mark that we've logged the app ready event
+      this.hasLoggedAppReady = true;
     } catch (error) {
       console.error('[ObsidianObserver] Error handling app ready event:', error);
     } finally {
       this.isProcessingEvent = false;
     }
   }
+
+
 
   async testLogging(): Promise<void> {
     try {
@@ -334,6 +444,7 @@ export class EventHandlers {
           filePath: 'test-file.md',
           fileName: 'test-file.md',
           vaultName: this.app.vault.getName(),
+          hostname: this.getHostname(),
           metadata: {
             lastModified: new Date().toISOString(),
             fileSize: 1024

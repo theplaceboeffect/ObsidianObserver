@@ -125,4 +125,91 @@
   **COMPLETED**: 20241231-204500
 1. [I] Add a new command "ObsdianObserverRefreshSummary" that will write a new updated copy of the `EventSummary.md` file.
   **COMPLETED**: 20241231-205000
-1. [R] Update the `Daily Notes` template to use the syntax from the `Daily Notes Plugin`
+
+# v00.00.05
+
+1. [I] Create a configuration page that will:
+  - [I] set the folder where the events will end up.
+  - [I] set the path to where the EventSummary.md will be recreated.
+  - [I] Recreate EventSummary.md when either paths change.
+  **COMPLETED**: 20250101-174900
+
+1. [I] default the events folder to '/ObsidianObserver/events' and the event summary to be '/ObsidianObserver/EventSummary.md'
+  **COMPLETED**: 20250101-175600 
+
+1. [I] BUG: The settings aren't visible.
+  **COMPLETED**: 20250101-180400
+
+1. [I] Remove the setting "Max Log Size" (maxLogSize)
+  **COMPLETED**: 20250101-183000
+1. [I] Remove the setting "Include File Metadata" (includeMetadata)
+  **COMPLETED**: 20250101-183000
+
+
+1. [I] Bug - exclude logging capture of access to the events folder.
+  **COMPLETED**: 20250101-191000
+1. [I] Remove the setting for the `EventSummary.md` file - this should always be stored in the `Events Folder`.
+  **COMPLETED**: 20250101-191000
+1. [I] Always create the `Events Folder` under the Events Folder.
+  **COMPLETED**: 20250101-191000
+1. [I] When the `Events Folder` is changed, refresh the display to ensure it is visible.
+  **COMPLETED**: 20250101-191000
+
+
+1. [I] Rework the settings:
+  - [I] Only have one setting for the `EventsFolder` itself
+    - [I] All events will always be created in `EventsFolder/events`.
+    - [I] The summary file will always be created in `EventsFolder/EventsSummary.md`.
+  - [I] Remove the setting for the EventSummary folder.
+  - [I] Set the default to `ObsidianObserver`.
+  - [I] Remove unused setting parameters and fields.
+  **COMPLETED**: 20250101-200900
+
+1. [I] Replace the problematic `ready` event with a proper app launch detection:
+  - [I] Remove the old `ready` event that was creating multiple events
+  - [I] Implement proper `layout-ready` event detection for app launch
+  - [I] Use the existing `ready` event type but with better event handling
+  **COMPLETED**: 20250101-200900
+
+1. [I] Add a 'PluginLoaded' event when first loaded when the app launches.
+  **COMPLETED**: 20250101-203000
+
+1. [I] Record application QUIT
+  **COMPLETED**: 20250101-203500
+
+# v00.00.06
+1. [I] Add the hostname to the frontmatter of each event.
+    - Also update all the queries in EventSummary.md to include the hostname field.
+  **COMPLETED**: 20250101-204000
+1. [I] BUG: The hostname is just 'obsidian.md' - find another means to get the hostname.
+  **COMPLETED**: 20250101-213000
+
+1. [I] Add directory tree refresh to flush and refresh commands
+  **COMPLETED**: 20250101-213000
+
+1. [I] Hide the version from the statusbar.
+  **COMPLETED**: 20250101-214500
+1. [I] Show the version in the plugin configuration page.
+  **COMPLETED**: 20250101-214500
+
+# v00.00.07
+1. [I] Replace most active files function with enhanced dataviewjs query and HTML table output
+  **COMPLETED**: 20250101-220000
+  - [I] Implemented advanced dataviewjs query with HTML table generation
+  - [I] Enhanced filtering to exclude system events (ready, PLUGINLOADED, QUIT)
+  - [I] Added custom HTML table with improved styling and layout
+  - [I] Implemented responsive design with proper column widths and text overflow handling
+  - [I] Enhanced data structure with Total field and improved sorting
+  - [I] Added CSS classes for better integration with existing styling
+  - [I] Make the file reference a link to the original note.
+    **COMPLETED**: 20250101-220500
+  - [I] Ignore files that are in the audit directory.
+    **COMPLETED**: 20250101-221000
+  - [I] Filter out files that only have access events (opens without saves/closes)
+    **COMPLETED**: 20250101-221500
+  - [I] Also create the following a Bases file `EventsBase.base` alongside `EventsSummary.md`:
+    **COMPLETED**: 20250101-222000
+  - [I] Update logger.ts to create `EventsBase.base` whenever `EventsSummary.md` is created.
+    **COMPLETED**: 20250101-222500
+  - [R] Move the contents of the files out of source:
+      - Update `logger.ts` to replace the the fileContents of both `EventSummary.md` and `EventsBase.base` with a substitution_string.

@@ -10,6 +10,7 @@ A comprehensive Obsidian plugin that tracks file events (open, save, close) and 
 - **DataView Compatible**: Optimized frontmatter structure for DataView queries
 - **Unique GUIDs**: Base32-encoded identifiers for each event
 - **Professional Styling**: CSS integration for DataView tables
+- **Configurable Events Directory**: Customizable folder for storing event files
 
 ## Quick Start
 
@@ -17,6 +18,14 @@ A comprehensive Obsidian plugin that tracks file events (open, save, close) and 
 1. Download the latest release
 2. Extract to your Obsidian vault's `.obsidian/plugins/` directory
 3. Enable the plugin in Obsidian settings
+
+### Configuration
+The plugin provides a comprehensive settings page accessible through Obsidian's Settings → Community Plugins → ObsidianObserver:
+
+- **Events Directory**: Set the folder where event files will be stored (default: `ObsidianObserver/events`)
+- **Enable Console Logging**: Toggle console output for debugging
+
+**Note**: The EventSummary.md file is automatically created in the Events Directory.
 
 ### Deployment
 Use the provided PowerShell deployment script to deploy the plugin:
