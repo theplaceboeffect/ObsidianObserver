@@ -1,6 +1,6 @@
 {
   "name": "obsidian-explorer",
-  "version": "00.00.06_0068",
+  "version": "00.00.07_0077",
   "description": "Track note open, close, and save events for debugging and analytics",
   "main": "main.js",
   "scripts": {

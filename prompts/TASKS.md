@@ -191,3 +191,25 @@
   **COMPLETED**: 20250101-214500
 1. [I] Show the version in the plugin configuration page.
   **COMPLETED**: 20250101-214500
+
+# v00.00.07
+1. [I] Replace most active files function with enhanced dataviewjs query and HTML table output
+  **COMPLETED**: 20250101-220000
+  - [I] Implemented advanced dataviewjs query with HTML table generation
+  - [I] Enhanced filtering to exclude system events (ready, PLUGINLOADED, QUIT)
+  - [I] Added custom HTML table with improved styling and layout
+  - [I] Implemented responsive design with proper column widths and text overflow handling
+  - [I] Enhanced data structure with Total field and improved sorting
+  - [I] Added CSS classes for better integration with existing styling
+  - [I] Make the file reference a link to the original note.
+    **COMPLETED**: 20250101-220500
+  - [I] Ignore files that are in the audit directory.
+    **COMPLETED**: 20250101-221000
+  - [I] Filter out files that only have access events (opens without saves/closes)
+    **COMPLETED**: 20250101-221500
+  - [I] Also create the following a Bases file `EventsBase.base` alongside `EventsSummary.md`:
+    **COMPLETED**: 20250101-222000
+  - [I] Update logger.ts to create `EventsBase.base` whenever `EventsSummary.md` is created.
+    **COMPLETED**: 20250101-222500
+  - [R] Move the contents of the files out of source:
+      - Update `logger.ts` to replace the the fileContents of both `EventSummary.md` and `EventsBase.base` with a substitution_string.

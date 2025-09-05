@@ -438,6 +438,72 @@ LIMIT 30
       console.error(`[ObsidianObserver] Error creating summary file:`, error);
     }
   }
+  async createEventsBaseFile() {
+    try {
+      const basePath = `${this.config.eventsFolder}/EventsBase.base`;
+      const baseContent = `formulas:
+  Time: OOEvent_LocalTimestamp
+  File: link(OOEvent_Filename)
+  Untitled: OOEvent_LocalTimestamp - now()
+  When: (now() - date(OOEvent_LocalTimestamp.slice(0,10))).days
+  FileLink: file(OOEvent_FilePath)
+  Accessed: date(OOEvent_LocalTimestamp.slice(0,19)).relative()
+properties:
+  note.OOEvent_Type:
+    displayName: Event
+  note.OOEvent_LocalTimestamp:
+    displayName: Timestamp
+  file.name:
+    displayName: Note
+  note.OOEvent_Hostname:
+    displayName: Hostname
+views:
+  - type: table
+    name: Table
+    filters:
+      and:
+        - file.hasProperty("OOEvent_GUID")
+    order:
+      - OOEvent_Type
+      - formula.File
+      - OOEvent_LocalTimestamp
+      - OOEvent_Timestamp
+    sort: []
+    columnSize:
+      formula.File: 150
+  - type: table
+    name: Today's File Accesses
+    filters:
+      and:
+        - formula.When <= 1
+        - OOEvent_Type.containsAny("open", "save", "rename", "delete")
+    order:
+      - formula.FileLink
+      - OOEvent_Type
+      - formula.Accessed
+      - OOEvent_Hostname
+    sort:
+      - property: formula.Accessed
+        direction: DESC
+      - property: OOEvent_LocalTimestamp
+        direction: ASC
+      - property: formula.When
+        direction: ASC
+    columnSize:
+      formula.FileLink: 140
+      note.OOEvent_Type: 117
+      note.OOEvent_LocalTimestamp: 213`;
+      const existingFile = this.app.vault.getAbstractFileByPath(basePath);
+      if (existingFile) {
+        console.log(`[ObsidianObserver] EventsBase.base file already exists: ${basePath}`);
+        return;
+      }
+      await this.app.vault.create(basePath, baseContent);
+      console.log(`[ObsidianObserver] Created EventsBase.base file: ${basePath}`);
+    } catch (error) {
+      console.error(`[ObsidianObserver] Error creating EventsBase.base file:`, error);
+    }
+  }
   async createMainSummaryNote() {
     try {
       const summaryPath = `${this.config.eventsFolder}/EventsSummary.md`;
@@ -478,18 +544,76 @@ SORT Count DESC
 \`\`\`
 
 ### Most Active Files
-\`\`\`dataview
-TABLE WITHOUT ID
-  regexreplace(OOEvent_FileName, ".md$", "") AS "File",
-  OOEvent_Hostname AS "Host",
-  length(rows) as "Total Events", 
-  length(filter(rows, r => r.OOEvent_Type = "open")) as "Opens",
-  length(filter(rows, r => r.OOEvent_Type = "save")) as "Saves",
-  length(filter(rows, r => r.OOEvent_Type = "close")) as "Closes"
-FROM "${this.config.eventsFolder}/events"
-GROUP BY OOEvent_FileName
-SORT "Total Events" DESC
-LIMIT 15
+\`\`\`dataviewjs
+const ignore = ["ready", "PLUGINLOADED", "QUIT"];
+
+const pages = dv.pages('"${this.config.eventsFolder}/events"')
+  .where(p => p.OOEvent_FileName && 
+              !ignore.includes(p.OOEvent_Type) && 
+              !p.OOEvent_FilePath.includes('${this.config.eventsFolder}'));
+
+const grouped = new Map();
+
+for (let page of pages) {
+  const key = page.OOEvent_FileName;
+  if (!grouped.has(key)) grouped.set(key, []);
+  grouped.get(key).push(page);
+}
+
+const result = Array.from(grouped.entries())
+  .map(([file, rows]) => {
+    const opens = rows.filter(r => r.OOEvent_Type === "open").length;
+    const saves = rows.filter(r => r.OOEvent_Type === "save").length;
+    const closes = rows.filter(r => r.OOEvent_Type === "close").length;
+    return {
+      File: file.replace(/\\.md$/, ""),
+      Opens: opens,
+      Saves: saves,
+      Closes: closes,
+      Total: rows.length
+    };
+  })
+  .filter(row => row.Saves > 0 || row.Closes > 0) // Filter out files that only have opens
+  .sort((a, b) => b.Total - a.Total)
+  .slice(0, 15);
+
+// Build the HTML table
+let html = \`
+<div class="activity-log-table">
+<table>
+  <thead>
+    <tr>
+      <th style="width: 40%; text-align: left;">File</th>
+      <th style="text-align: right;">Total</th>
+      <th style="text-align: right;">Opens</th>
+      <th style="text-align: right;">Saves</th>
+      <th style="text-align: right;">Closes</th>
+    </tr>
+  </thead>
+  <tbody>
+\`;
+
+for (let row of result) {
+  // Create a link to the original note
+  const fileLink = \`[[\${row.File}]]\`;
+  html += \`
+    <tr>
+      <td style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">\${fileLink}</td>
+      <td style="text-align: right;">\${row.Total}</td>
+      <td style="text-align: right;">\${row.Opens}</td>
+      <td style="text-align: right;">\${row.Saves}</td>
+      <td style="text-align: right;">\${row.Closes}</td>
+    </tr>
+  \`;
+}
+
+html += \`
+  </tbody>
+</table>
+</div>
+\`;
+
+dv.container.innerHTML = html;
 \`\`\`
 
 ## File Operations
@@ -729,6 +853,7 @@ WHERE OOEvent_GUID = "YOUR_GUID_HERE"
       }
       await this.app.vault.create(summaryPath, summaryContent);
       console.log(`[ObsidianObserver] Created main summary file: ${summaryPath}`);
+      await this.createEventsBaseFile();
       this.app.workspace.trigger("file-explorer:refresh");
     } catch (error) {
       console.error(`[ObsidianObserver] Error creating main summary file:`, error);
@@ -737,10 +862,16 @@ WHERE OOEvent_GUID = "YOUR_GUID_HERE"
   async refreshMainSummaryNote() {
     try {
       const summaryPath = `${this.config.eventsFolder}/EventsSummary.md`;
-      const existingFile = this.app.vault.getAbstractFileByPath(summaryPath);
-      if (existingFile) {
-        await this.app.vault.delete(existingFile);
+      const basePath = `${this.config.eventsFolder}/EventsBase.base`;
+      const existingSummaryFile = this.app.vault.getAbstractFileByPath(summaryPath);
+      if (existingSummaryFile) {
+        await this.app.vault.delete(existingSummaryFile);
         console.log(`[ObsidianObserver] Deleted existing summary file: ${summaryPath}`);
+      }
+      const existingBaseFile = this.app.vault.getAbstractFileByPath(basePath);
+      if (existingBaseFile) {
+        await this.app.vault.delete(existingBaseFile);
+        console.log(`[ObsidianObserver] Deleted existing EventsBase.base file: ${basePath}`);
       }
       await this.createMainSummaryNote();
       console.log(`[ObsidianObserver] Refreshed main summary file: ${summaryPath}`);
